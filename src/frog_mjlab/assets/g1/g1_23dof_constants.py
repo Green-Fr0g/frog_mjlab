@@ -1,4 +1,4 @@
-"""Unitree G1 constants."""
+"""Unitree G1_23DOF constants."""
 
 from pathlib import Path
 
@@ -17,13 +17,13 @@ from mjlab.utils.spec_config import CollisionCfg
 # MJCF and assets.
 ##
 
-G1_XML: Path = MODEL_PATH / "unitree_g1" / "xmls" / "g1.xml"
-assert G1_XML.exists()
+G1_23DOF_XML: Path = MODEL_PATH / "g1" / "g1_23dof.xml"
+assert G1_23DOF_XML.exists()
 
 
 def get_spec() -> mujoco.MjSpec:
   # Meshes are loaded automatically from the xml's meshdir (xmls/assets).
-  return mujoco.MjSpec.from_file(str(G1_XML))
+  return mujoco.MjSpec.from_file(str(G1_23DOF_XML))
 
 
 ##
@@ -87,8 +87,6 @@ ARMATURE_4010 = reflected_inertia_from_two_stage_planetary(
   ROTOR_INERTIAS_4010, GEARS_4010
 )
 
-ARMATURE_5010_16 = 0.0021812
-
 ACTUATOR_5020 = ElectricActuator(
   reflected_inertia=ARMATURE_5020,
   velocity_limit=37.0,
@@ -109,11 +107,6 @@ ACTUATOR_4010 = ElectricActuator(
   velocity_limit=22.0,
   effort_limit=5.0,
 )
-ACTUATOR_5010_16 = ElectricActuator(
-  reflected_inertia=ARMATURE_5010_16,
-  velocity_limit=22.0,
-  effort_limit=10.0,
-)
 
 NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
 DAMPING_RATIO = 2.0
@@ -122,13 +115,11 @@ STIFFNESS_5020 = ARMATURE_5020 * NATURAL_FREQ**2
 STIFFNESS_7520_14 = ARMATURE_7520_14 * NATURAL_FREQ**2
 STIFFNESS_7520_22 = ARMATURE_7520_22 * NATURAL_FREQ**2
 STIFFNESS_4010 = ARMATURE_4010 * NATURAL_FREQ**2
-STIFFNESS_5010_16 = ARMATURE_5010_16 * NATURAL_FREQ**2
 
 DAMPING_5020 = 2.0 * DAMPING_RATIO * ARMATURE_5020 * NATURAL_FREQ
 DAMPING_7520_14 = 2.0 * DAMPING_RATIO * ARMATURE_7520_14 * NATURAL_FREQ
 DAMPING_7520_22 = 2.0 * DAMPING_RATIO * ARMATURE_7520_22 * NATURAL_FREQ
 DAMPING_4010 = 2.0 * DAMPING_RATIO * ARMATURE_4010 * NATURAL_FREQ
-DAMPING_5010_16 = 2.0 * DAMPING_RATIO * ARMATURE_5010_16 * NATURAL_FREQ
 
 G1_ACTUATOR_5020 = BuiltinPositionActuatorCfg(
   target_names_expr=(
@@ -144,46 +135,25 @@ G1_ACTUATOR_5020 = BuiltinPositionActuatorCfg(
   armature=ACTUATOR_5020.reflected_inertia,
 )
 G1_ACTUATOR_7520_14 = BuiltinPositionActuatorCfg(
-  target_names_expr=(".*_hip_yaw_joint", "waist_yaw_joint"),
+  target_names_expr=(".*_hip_pitch_joint", ".*_hip_yaw_joint", "waist_yaw_joint"),
   stiffness=STIFFNESS_7520_14,
   damping=DAMPING_7520_14,
   effort_limit=ACTUATOR_7520_14.effort_limit,
   armature=ACTUATOR_7520_14.reflected_inertia,
 )
 G1_ACTUATOR_7520_22 = BuiltinPositionActuatorCfg(
-  target_names_expr=(".*_hip_pitch_joint", ".*_hip_roll_joint", ".*_knee_joint"),
+  target_names_expr=(".*_hip_roll_joint", ".*_knee_joint"),
   stiffness=STIFFNESS_7520_22,
   damping=DAMPING_7520_22,
   effort_limit=ACTUATOR_7520_22.effort_limit,
   armature=ACTUATOR_7520_22.reflected_inertia,
 )
-# G1_ACTUATOR_4010 = BuiltinPositionActuatorCfg(
-#   target_names_expr=(".*_wrist_pitch_joint", ".*_wrist_yaw_joint"),
-#   stiffness=STIFFNESS_4010,
-#   damping=DAMPING_4010,
-#   effort_limit=ACTUATOR_4010.effort_limit,
-#   armature=ACTUATOR_4010.reflected_inertia,
-# )
-G1_ACTUATOR_5010_16 = BuiltinPositionActuatorCfg(
-  target_names_expr=(".*_wrist_pitch_joint", ".*_wrist_yaw_joint"),
-  stiffness=STIFFNESS_5010_16,
-  damping=DAMPING_5010_16,
-  effort_limit=ACTUATOR_5010_16.effort_limit,
-  armature=ACTUATOR_5010_16.reflected_inertia,
-)
 
-# Waist pitch/roll and ankles are 4-bar linkages with 2 5020 actuators.
+# Ankles are 4-bar linkages with 2 5020 actuators.
 # Due to the parallel linkage, the effective armature at the ankle and waist joints
 # is configuration dependent. Since the exact geometry of the linkage is unknown, we
 # assume a nominal 1:1 gear ratio. Under this assumption, the joint armature in the
 # nominal configuration is approximated as the sum of the 2 actuators' armatures.
-G1_ACTUATOR_WAIST = BuiltinPositionActuatorCfg(
-  target_names_expr=("waist_pitch_joint", "waist_roll_joint"),
-  stiffness=STIFFNESS_5020 * 2,
-  damping=DAMPING_5020 * 2,
-  effort_limit=ACTUATOR_5020.effort_limit * 2,
-  armature=ACTUATOR_5020.reflected_inertia * 2,
-)
 G1_ACTUATOR_ANKLE = BuiltinPositionActuatorCfg(
   target_names_expr=(".*_ankle_pitch_joint", ".*_ankle_roll_joint"),
   stiffness=STIFFNESS_5020 * 2,
@@ -263,42 +233,40 @@ FEET_ONLY_COLLISION = CollisionCfg(
 # Final config.
 ##
 
-G1_ARTICULATION = EntityArticulationInfoCfg(
+G1_23DOF_ARTICULATION = EntityArticulationInfoCfg(
   actuators=(
     G1_ACTUATOR_5020,
     G1_ACTUATOR_7520_14,
     G1_ACTUATOR_7520_22,
-    G1_ACTUATOR_5010_16,
-    G1_ACTUATOR_WAIST,
     G1_ACTUATOR_ANKLE,
   ),
   soft_joint_pos_limit_factor=0.9,
 )
 
 
-def get_g1_robot_cfg() -> EntityCfg:
-  """Get a fresh G1 robot configuration instance.
+def get_g1_23dof_robot_cfg() -> EntityCfg:
+  """Get a fresh G1_23DOF robot configuration instance.
 
   Returns a new EntityCfg instance each time to avoid mutation issues when
   the config is shared across multiple places.
   """
   return EntityCfg(
-    init_state=KNEES_BENT_KEYFRAME,
+    init_state=HOME_KEYFRAME,
     collisions=(FULL_COLLISION,),
     spec_fn=get_spec,
-    articulation=G1_ARTICULATION,
+    articulation=G1_23DOF_ARTICULATION,
   )
 
 
-G1_ACTION_SCALE: dict[str, float] = {}
-for a in G1_ARTICULATION.actuators:
+G1_23DOF_ACTION_SCALE: dict[str, float] = {}
+for a in G1_23DOF_ARTICULATION.actuators:
   assert isinstance(a, BuiltinPositionActuatorCfg)
   e = a.effort_limit
   s = a.stiffness
   names = a.target_names_expr
   assert e is not None
   for n in names:
-    G1_ACTION_SCALE[n] = 0.25 * e / s
+    G1_23DOF_ACTION_SCALE[n] = 0.25 * e / s
 
 
 if __name__ == "__main__":
@@ -306,6 +274,6 @@ if __name__ == "__main__":
 
   from mjlab.entity.entity import Entity
 
-  robot = Entity(get_g1_robot_cfg())
+  robot = Entity(get_g1_23dof_robot_cfg())
 
   viewer.launch(robot.spec.compile())

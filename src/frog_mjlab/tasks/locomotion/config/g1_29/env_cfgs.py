@@ -1,6 +1,6 @@
 """Unitree G1 velocity environment configurations."""
 
-from frog_mjlab.assets.robots import (
+from frog_mjlab.assets import (
   G1_ACTION_SCALE,
   get_g1_robot_cfg,
 )
@@ -12,12 +12,12 @@ from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg, RayCastSensorCfg
 from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
-from frog_mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
+from frog_mjlab.tasks.locomotion.locomotion_env_cfg import make_locomotion_env_cfg
 
 
 def unitree_g1_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create Unitree G1 rough terrain velocity configuration."""
-  cfg = make_velocity_env_cfg()
+  cfg = make_locomotion_env_cfg()
 
   cfg.sim.mujoco.ccd_iterations = 1000
   cfg.sim.contact_sensor_maxmatch = 500

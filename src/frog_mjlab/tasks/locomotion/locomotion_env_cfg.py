@@ -30,10 +30,10 @@ from mjlab.terrains.config import ROUGH_TERRAINS_CFG
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
 
-import frog_mjlab.tasks.velocity.mdp as mdp
+import frog_mjlab.tasks.locomotion.mdp as mdp
 
 
-def make_velocity_env_cfg() -> ManagerBasedRlEnvCfg:
+def make_locomotion_env_cfg() -> ManagerBasedRlEnvCfg:
   """Create base velocity tracking task configuration."""
 
   ##

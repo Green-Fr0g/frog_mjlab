@@ -1,7 +1,7 @@
 # frog-mjlab
 
 基于 [mjlab](https://github.com/unitreerobotics/unitree_rl_mjlab)（本地仓库 `mjlab`）的**外部扩展**训练框架，
-参照 `AMP_mjlab` 的组织方式，从 mjlab 抽离出一个开箱即用的 **G1 机器人速度跟踪（velocity）训练任务**。
+参照 `AMP_mjlab` 的组织方式，从 mjlab 抽离出一个开箱即用的 **G1 机器人速度跟踪（locomotion）训练任务**。
 
 - 单一策略学习 G1 行走 / 跑步（速度跟踪）
 - 基于 `mjlab.rl` 的 PPO 训练（`MjlabOnPolicyRunner`）
@@ -39,26 +39,30 @@ export PYTHONPATH="$PWD/src"
 python scripts/list_envs.py --keyword G1
 ```
 
-本工程注册的任务：
+本工程注册的任务（G1 有 29 DoF 与 23 DoF 两个不同变体，任务 ID 已标注 DoF 数）：
 
-- `Unitree-G1-Rough` — 粗糙地形速度跟踪
-- `Unitree-G1-Flat` — 平地速度跟踪
+- `Unitree-G1-29-Rough` — G1 **29 DoF** 粗糙地形速度跟踪（使用 `g1.xml`）
+- `Unitree-G1-29-Flat` — G1 **29 DoF** 平地速度跟踪（使用 `g1.xml`）
+
+> 说明：23 DoF 变体（`g1_23dof.xml`）当前未注册为速度跟踪任务，因为其模型缺少
+> `left_foot`/`right_foot` 站点，无法直接复用 velocity 任务的 foot 观测/奖励，
+> 需要单独的模型/环境适配。
 
 ## 训练
 
 ```bash
-python scripts/train.py Unitree-G1-Flat --env.scene.num-envs=4096
+python scripts/train.py Unitree-G1-29-Flat --env.scene.num-envs=4096
 ```
 
 训练日志默认保存到：
 
-- `logs/rsl_rl/g1_velocity/<time_stamp_run>/`
+- `logs/rsl_rl/g1_locomotion/<time_stamp_run>/`
 
 ## 回放 / 可视化
 
 ```bash
-python scripts/play.py Unitree-G1-Rough \
-  --checkpoint-file logs/rsl_rl/g1_velocity/<run_dir>/model_<iter>.pt
+python scripts/play.py Unitree-G1-29-Rough \
+  --checkpoint-file logs/rsl_rl/g1_locomotion/<run_dir>/model_<iter>.pt
 ```
 
 回放默认启用 ONNX 导出，生成 `policy.onnx`。
@@ -67,16 +71,21 @@ python scripts/play.py Unitree-G1-Rough \
 
 ```
 model/
-└── unitree_g1/xmls/            # 机器人模型资产（MJCF XML + STL mesh）
+└── g1/                        # G1 机器人模型（MJCF XML + STL mesh）
+    ├── g1.xml                 # 机器人模型（29 DoF），训练代码使用
+    ├── g1_23dof.xml           # 23 DoF 变体
+    ├── scene_g1.xml           # 场景文件（机器人 + 地面/相机，供独立可视化）
+    ├── scene_g1_23dof.xml     # 23 DoF 场景变体
+    └── assets/                # STL mesh 网格
 src/frog_mjlab/
 ├── __init__.py                 # SRC_PATH / MODEL_PATH
 ├── assets/
-│   └── robots/unitree_g1/      # G1 机器人常量与执行器配置（模型文件在 model/）
+│   └── g1/                     # G1 机器人常量与执行器配置（模型文件在 model/g1/）
 ├── tasks/
-│   └── velocity/               # velocity 速度跟踪任务
-│       ├── velocity_env_cfg.py # 任务配置工厂
+│   └── locomotion/             # locomotion 速度跟踪任务
+│       ├── locomotion_env_cfg.py # 任务配置工厂
 │       ├── mdp/                # rewards / observations / terminations / curriculum
-│       ├── rl/runner.py        # VelocityOnPolicyRunner（含 ONNX 导出）
+│       ├── rl/runner.py        # LocomotionOnPolicyRunner（含 ONNX 导出）
 │       └── config/g1/          # G1 环境与 RL 配置 + 任务注册
 scripts/
 ├── train.py                    # 训练入口
