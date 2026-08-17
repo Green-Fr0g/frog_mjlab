@@ -16,8 +16,8 @@ from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from frog_mjlab.tasks.amp.amp_env_cfg import make_amp_env_cfg
 
-def g1_amp_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-  """Create Unitree G1 rough terrain velocity configuration."""
+def _g1_amp_base_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create the shared Unitree G1 AMP base configuration."""
   cfg = make_amp_env_cfg()
 
   # Keep CCD high enough for stability but avoid Warp OOM from excessive EPA buffers.
@@ -37,22 +37,86 @@ def g1_amp_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   geom_names = tuple(
     f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(1, 8)
   )
-  body_names = ("pelvis",
-                "left_hip_roll_link",
-                "left_knee_link",
-                "left_ankle_roll_link",
-                "right_hip_roll_link",
-                "right_knee_link",
-                "right_ankle_roll_link",
-                "left_shoulder_roll_link",
-                "left_elbow_link",
-                "left_wrist_yaw_link",
-                "right_shoulder_roll_link",
-                "right_elbow_link",
-                "right_wrist_yaw_link",)
   anchor_name = "torso_link"
   root_name = "pelvis"
-
+  link_names = (
+    "left_hip_pitch_link",
+    "left_hip_roll_link",
+    "left_hip_yaw_link",
+    "left_knee_link",
+    "left_ankle_pitch_link",
+    "left_ankle_roll_link",
+    "right_hip_pitch_link",
+    "right_hip_roll_link",
+    "right_hip_yaw_link",
+    "right_knee_link",
+    "right_ankle_pitch_link",
+    "right_ankle_roll_link",
+    "waist_yaw_link",
+    "waist_roll_link",
+    "torso_link",
+    "left_shoulder_pitch_link",
+    "left_shoulder_roll_link",
+    "left_shoulder_yaw_link",
+    "left_elbow_link",
+    "left_wrist_roll_link",
+    "left_wrist_pitch_link",
+    "left_wrist_yaw_link",
+    "right_shoulder_pitch_link",
+    "right_shoulder_roll_link",
+    "right_shoulder_yaw_link",
+    "right_elbow_link",
+    "right_wrist_roll_link",
+    "right_wrist_pitch_link",
+    "right_wrist_yaw_link",
+  )
+  all_body_names = (root_name, *link_names)
+  joint_names = (
+    "left_hip_pitch_joint",
+    "left_hip_roll_joint",
+    "left_hip_yaw_joint",
+    "left_knee_joint",
+    "left_ankle_pitch_joint",
+    "left_ankle_roll_joint",
+    "right_hip_pitch_joint",
+    "right_hip_roll_joint",
+    "right_hip_yaw_joint",
+    "right_knee_joint",
+    "right_ankle_pitch_joint",
+    "right_ankle_roll_joint",
+    "waist_yaw_joint",
+    "waist_roll_joint",
+    "waist_pitch_joint",
+    "left_shoulder_pitch_joint",
+    "left_shoulder_roll_joint",
+    "left_shoulder_yaw_joint",
+    "left_elbow_joint",
+    "left_wrist_roll_joint",
+    "left_wrist_pitch_joint",
+    "left_wrist_yaw_joint",
+    "right_shoulder_pitch_joint",
+    "right_shoulder_roll_joint",
+    "right_shoulder_yaw_joint",
+    "right_elbow_joint",
+    "right_wrist_roll_joint",
+    "right_wrist_pitch_joint",
+    "right_wrist_yaw_joint",
+  )
+  body_names = (
+    "pelvis",
+    "left_hip_roll_link",
+    "left_knee_link",
+    "left_ankle_roll_link",
+    "right_hip_roll_link",
+    "right_knee_link",
+    "right_ankle_roll_link",
+    "left_shoulder_roll_link",
+    "left_elbow_link",
+    "left_wrist_yaw_link",
+    "right_shoulder_roll_link",
+    "right_elbow_link",
+    "right_wrist_yaw_link",
+  )
   feet_ground_cfg = ContactSensorCfg(
     name="feet_ground_contact",
     primary=ContactMatch(
@@ -98,20 +162,17 @@ def g1_amp_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
   cfg.events["base_com"].params["asset_cfg"].body_names = ("torso_link",)
 
-  # Configure motion reset to sample from the entire motion with a delay.
-  cfg.events["init_motion_loader"].params["delay_reset_env_ratio"] = 0.4
-  cfg.events["init_motion_loader"].params["max_delay_steps"] = 250
-
   # Set motion data path for startup loader and reset.
-  _motion_base = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "..", "assets", "motions", "g1", "amp"
-  )
+  _motion_base = os.path.join(os.path.dirname(__file__), "motions")
   _motion_dir = os.path.abspath(os.path.join(_motion_base, "WalkandRun"))
-  _recovery_dir = os.path.abspath(os.path.join(_motion_base, "Recovery"))
 
   cfg.events["init_motion_loader"].params["motion_dir"] = _motion_dir
-  cfg.events["init_motion_loader"].params["recovery_dir"] = _recovery_dir
+  cfg.events["init_motion_loader"].params["root_name"] = root_name
+  cfg.events["init_motion_loader"].params["all_body_names"] = all_body_names
   cfg.events["reset_from_motion"].params["motion_dir"] = _motion_dir
+  cfg.events["reset_from_motion"].params["root_name"] = root_name
+  cfg.events["reset_from_motion"].params["all_body_names"] = all_body_names
+  cfg.events["reset_from_motion"].params["asset_cfg"].joint_names = joint_names
 
   cfg.rewards["track_anchor_linear_velocity"].params["anchor_cfg"].body_names = (anchor_name,)
   cfg.rewards["track_anchor_angular_velocity"].params["anchor_cfg"].body_names = (anchor_name,)
@@ -156,9 +217,6 @@ def g1_amp_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       mode="reset",
       params={},
     )
-
-    cfg.events["init_motion_loader"].params["delay_reset_env_ratio"] = 1.0
-
     if cfg.scene.terrain is not None:
       if cfg.scene.terrain.terrain_generator is not None:
         cfg.scene.terrain.terrain_generator.curriculum = False
@@ -169,9 +227,9 @@ def g1_amp_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   return cfg
 
 
-def g1_amp_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-  """Create Unitree G1 flat terrain velocity configuration."""
-  cfg = g1_amp_rough_env_cfg(play=play)
+def g1_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create Unitree G1 AMP environment configuration."""
+  cfg = _g1_amp_base_env_cfg(play=play)
 
   cfg.sim.njmax = 640
   cfg.sim.mujoco.ccd_iterations = 50

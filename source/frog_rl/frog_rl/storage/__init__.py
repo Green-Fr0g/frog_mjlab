@@ -1,24 +1,12 @@
-# Copyright (c) 2021-2024, The RSL-RL Project Developers.
-# All rights reserved.
-# Original code is licensed under the BSD-3-Clause license.
-#
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
+# Copyright (c) 2021-2026, ETH Zurich and NVIDIA CORPORATION
 # All rights reserved.
 #
-# Copyright (c) 2025-2026, The Legged Lab Project Developers.
-# All rights reserved.
-#
-# Copyright (c) 2025-2026, The TienKung-Lab Project Developers.
-# All rights reserved.
-# Modifications are licensed under the BSD-3-Clause license.
-#
-# This file contains code derived from the RSL-RL, Isaac Lab, and Legged Lab Projects,
-# with additional modifications by the TienKung-Lab Project,
-# and is distributed under the BSD-3-Clause license.
+# SPDX-License-Identifier: BSD-3-Clause
 
-"""Implementation of transitions storage for RL-agent."""
+"""Storage for the learning algorithms."""
 
-from .replay_buffer import ReplayBuffer
+from .amp_storage import AMPStorage
 from .rollout_storage import RolloutStorage
+from .wasabi_storage import WasabiStorage
 
-__all__ = ["RolloutStorage", "ReplayBuffer"]
+__all__ = ["AMPStorage", "RolloutStorage", "WasabiStorage"]

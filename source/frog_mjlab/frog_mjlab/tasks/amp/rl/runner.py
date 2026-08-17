@@ -2,32 +2,52 @@ import os
 import inspect
 
 import torch
-import wandb
+
+try:
+  import wandb
+except ImportError:  # pragma: no cover - optional logger dependency
+  wandb = None
 
 from mjlab.rl import RslRlVecEnvWrapper
 from mjlab.rl.exporter_utils import (
   attach_metadata_to_onnx,
   get_base_metadata,
 )
-from frog_rl.runners.amp_on_policy_runner import AmpOnPolicyRunner
+from frog_rl.runners import OnPolicyRunner
 
 
-class _OnnxPolicyWrapper(torch.nn.Module):
-  """Thin wrapper that exposes ``act_inference`` as ``forward`` for ONNX export.
-  
-  Includes the obs normalizer so the exported ONNX model expects raw observations
-  and C++ deployment does not need to implement normalization separately.
-  """
+def _drop_none_values(value):
+  if isinstance(value, dict):
+    return {
+      key: _drop_none_values(item)
+      for key, item in value.items()
+      if item is not None
+    }
+  if isinstance(value, list):
+    return [_drop_none_values(item) for item in value]
+  return value
 
-  def __init__(self, actor_critic, obs_normalizer=None):
-    super().__init__()
-    self.actor_critic = actor_critic
-    self.obs_normalizer = obs_normalizer
 
-  def forward(self, obs):
-    if self.obs_normalizer is not None:
-      obs = self.obs_normalizer(obs)
-    return self.actor_critic.act_inference(obs)
+_MLP_MODEL_KEYS = {
+  "class_name",
+  "hidden_dims",
+  "activation",
+  "obs_normalization",
+  "distribution_cfg",
+}
+
+
+def _normalize_train_cfg(train_cfg: dict) -> dict:
+  cfg = _drop_none_values(train_cfg)
+  for key in ("actor", "critic", "student", "teacher"):
+    model_cfg = cfg.get(key)
+    if isinstance(model_cfg, dict):
+      cfg[key] = {
+        item_key: item_value
+        for item_key, item_value in model_cfg.items()
+        if item_key in _MLP_MODEL_KEYS
+      }
+  return cfg
 
 
 def _onnx_export_kwargs_single_file() -> dict:
@@ -62,8 +82,11 @@ def _inline_external_onnx_data(onnx_path: str) -> None:
     print(f"[WARN]: Failed to inline ONNX external data for {onnx_path}: {exc}")
 
 
-class AMPOnPolicyRunner(AmpOnPolicyRunner):
+class AMPOnPolicyRunner(OnPolicyRunner):
   env: RslRlVecEnvWrapper
+
+  def __init__(self, env: RslRlVecEnvWrapper, train_cfg: dict, log_dir: str | None = None, device: str = "cpu") -> None:
+    super().__init__(env, _normalize_train_cfg(train_cfg), log_dir, device)
 
   def _export_policy_to_onnx(self, path: str, filename: str = "policy.onnx"):
     """Export the actor network to ONNX using the local ActorCritic model.
@@ -71,22 +94,14 @@ class AMPOnPolicyRunner(AmpOnPolicyRunner):
     The exported model includes the obs normalizer (if empirical_normalization
     is enabled) so that the ONNX model expects raw observations directly.
     """
-    policy = self.alg.policy
-    # Include normalizer in the ONNX model if empirical normalization is used
-    obs_normalizer = None
-    if self.empirical_normalization:
-      obs_normalizer = self.obs_normalizer
-      obs_normalizer.to("cpu")
-      obs_normalizer.eval()
-    wrapper = _OnnxPolicyWrapper(policy, obs_normalizer)
+    policy = self.alg.get_policy()
+    wrapper = policy.as_onnx(verbose=False)
     wrapper.to("cpu")
     wrapper.eval()
-    num_obs = policy.actor[0].in_features
-    dummy_input = torch.zeros(1, num_obs)
     os.makedirs(path, exist_ok=True)
     torch.onnx.export(
       wrapper,
-      dummy_input,
+      wrapper.get_dummy_inputs(),
       os.path.join(path, filename),
       export_params=True,
       opset_version=18,
@@ -98,20 +113,19 @@ class AMPOnPolicyRunner(AmpOnPolicyRunner):
     _inline_external_onnx_data(os.path.join(path, filename))
     # move policy back to training device
     policy.to(self.device)
-    if obs_normalizer is not None:
-      obs_normalizer.to(self.device)
 
   def save(self, path: str, infos=None):
     super().save(path, infos)
     policy_path = path.split("model")[0]
     filename = "policy.onnx"
     self._export_policy_to_onnx(policy_path, filename)
-    run_name: str = (
-      wandb.run.name if self.logger_type == "wandb" and wandb.run else "local"
-    )  # type: ignore[assignment]
+    logger_type = getattr(self.logger, "logger_type", None)
+    run_name: str = "local"
+    if logger_type in ("wandb", "WandbLogWriter") and wandb is not None and wandb.run:
+      run_name = wandb.run.name
     onnx_path = os.path.join(policy_path, filename)
     metadata = get_base_metadata(self.env.unwrapped, run_name)
     attach_metadata_to_onnx(onnx_path, metadata)
     _inline_external_onnx_data(onnx_path)
-    if self.logger_type in ["wandb"]:
+    if logger_type in ("wandb", "WandbLogWriter") and wandb is not None:
       wandb.save(policy_path + filename, base_path=os.path.dirname(policy_path))

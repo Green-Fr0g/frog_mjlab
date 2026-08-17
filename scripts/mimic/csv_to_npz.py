@@ -365,7 +365,7 @@ def main(
       "right_wrist_pitch_joint",
       "right_wrist_yaw_joint",
     ]
-    output_dir = "./source/frog_mjlab/frog_mjlab/assets/motions/g1"
+    output_dir = "./source/frog_mjlab/frog_mjlab/tasks/tracking/config/g1/motions"
   elif robot == "g1_23dof":
     scene = Scene(unitree_g1_23dof_flat_tracking_env_cfg().scene, device=device)
     joint_names=[    # 23 Dof
@@ -393,7 +393,7 @@ def main(
       "right_elbow_joint",
       "right_wrist_roll_joint",
     ]
-    output_dir = "./source/frog_mjlab/frog_mjlab/assets/motions/g1_23dof"
+    output_dir = "./source/frog_mjlab/frog_mjlab/tasks/tracking/config/g1_23dof/motions"
   else:
     raise ValueError(f"Unsupported robot: {robot}")
 

@@ -8,3 +8,5 @@ from .terminations import *  # noqa: F403
 from .command import *  # noqa: F403
 from .terrain import *  # noqa: F403
 from .metrics import *  # noqa: F403
+from .wasabi_events import *  # noqa: F403
+from .wasabi_observations import *  # noqa: F403

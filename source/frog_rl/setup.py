@@ -1,22 +1,27 @@
-# Copyright (c) 2021-2024, The RSL-RL Project Developers.
-# All rights reserved.
-# Original code is licensed under the BSD-3-Clause license.
-#
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
-# All rights reserved.
-#
-# Copyright (c) 2025-2026, The Legged Lab Project Developers.
-# All rights reserved.
-#
-# Copyright (c) 2025-2026, The TienKung-Lab Project Developers.
-# All rights reserved.
-# Modifications are licensed under the BSD-3-Clause license.
-#
-# This file contains code derived from the RSL-RL, Isaac Lab, and Legged Lab Projects,
-# with additional modifications by the TienKung-Lab Project,
-# and is distributed under the BSD-3-Clause license.
-from setuptools import find_packages
-from distutils.core import setup
+"""Setuptools entry point for the frog_rl package."""
 
-setup(name='frog_rl'
+from pathlib import Path
+
+from setuptools import find_packages, setup
+
+
+setup(
+    name="frog-rl",
+    version="0.1.0",
+    description="GPU-accelerated reinforcement learning algorithms for Frog Lab",
+    long_description=Path(__file__).with_name("README.md").read_text(encoding="utf-8"),
+    long_description_content_type="text/markdown",
+    author="Frog Lab",
+    url="https://github.com/Green-Fr0g/frog_lab",
+    python_requires=">=3.10",
+    install_requires=[
+        "torch>=2.6.0",
+        "tensordict>=0.7.0",
+        "numpy>=1.16.4",
+        "tensorboard",
+        "GitPython",
+        "onnx",
+        "onnxscript>=0.5.4",
+    ],
+    packages=find_packages(include=["frog_rl*"]),
 )

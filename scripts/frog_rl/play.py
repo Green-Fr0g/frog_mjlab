@@ -25,7 +25,9 @@ from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
 class PlayConfig:
   agent: Literal["zero", "random", "trained"] = "trained"
   checkpoint_file: str | None = None
+  wandb_run_path: str | None = None
   motion_file: str | None = None
+  registry_name: str | None = None
   num_envs: int | None = None
   device: str | None = None
   video: bool = False
@@ -168,13 +170,13 @@ def run_play(task_id: str, cfg: PlayConfig):
     if cfg.motion_file is not None and Path(cfg.motion_file).exists():
       print(f"[INFO]: Using local motion file: {cfg.motion_file}")
       motion_cmd.motion_file = cfg.motion_file
+    elif cfg.registry_name is not None:
+      raise NotImplementedError(
+        "--registry-name download is not implemented in frog_mjlab yet. "
+        "Use --motion-file with a local .npz file."
+      )
     elif DUMMY_MODE:
-      if not cfg.registry_name:
-        raise ValueError(
-          "Tracking tasks require either:\n"
-          "  --motion-file /path/to/motion.npz (local file)\n"
-          "  --registry-name your-org/motions/motion-name (download from WandB)"
-        )
+      raise ValueError("Tracking dummy play requires --motion-file /path/to/motion.npz")
   log_dir: Path | None = None
   resume_path: Path | None = None
   if TRAINED_MODE:
@@ -248,7 +250,9 @@ def run_play(task_id: str, cfg: PlayConfig):
   else:
     runner_cls = load_runner_cls(task_id) or MjlabOnPolicyRunner
     runner = runner_cls(env, asdict(agent_cfg), device=device)
-    runner.load(str(resume_path), load_optimizer=False)
+    runner.load(
+      str(resume_path), load_cfg={"actor": True}, strict=True, map_location=device
+    )
     policy = runner.get_inference_policy(device=device)
 
     if cfg.export_onnx:

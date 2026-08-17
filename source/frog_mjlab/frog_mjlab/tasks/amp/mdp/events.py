@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+import numpy as np
 import torch
 
 from mjlab.entity import Entity
@@ -10,20 +12,16 @@ from mjlab.managers.scene_entity_config import SceneEntityCfg
 if TYPE_CHECKING:
     from mjlab.envs import ManagerBasedRlEnv
 
-from frog_mjlab.tasks.amp.ampmotion_loader import MotionLoader
-from frog_mjlab.tasks.amp.mdp.terminations import DelayedTerminationManager
-
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
 
 class MotionResetManager:
-    """Manages motion frame data and delayed-reset logic for AMP environments."""
+    """Caches AMP motion frames and resets environments from sampled frames."""
 
     _instance: MotionResetManager | None = None
 
     def __init__(self) -> None:
-        self.walk_run_frames: dict[str, dict[str, torch.Tensor]] = {}
-        self.recovery_frames: dict[str, dict[str, torch.Tensor]] = {}
+        self._frames: dict[str, dict[str, torch.Tensor]] = {}
 
     @classmethod
     def get(cls) -> MotionResetManager:
@@ -37,30 +35,59 @@ class MotionResetManager:
 
     def init(
         self,
-        env: ManagerBasedRlEnv,
         motion_dir: str,
-        recovery_dir: str | None = None,
+        device: str | torch.device,
+        root_name: str,
+        all_body_names: tuple[str, ...],
     ) -> None:
-        if motion_dir in self.walk_run_frames:
+        motion_dir = str(Path(motion_dir).expanduser().resolve())
+        if root_name not in all_body_names:
+            raise ValueError(f"AMP root body '{root_name}' is not in all_body_names.")
+        root_index = all_body_names.index(root_name)
+        cache_key = f"{motion_dir}:{root_index}:{tuple(all_body_names)}"
+        if cache_key in self._frames:
             return
 
-        loader = MotionLoader(
-            motion_dir=motion_dir,
-            tgt_body_indexes=[],
-            tgt_anchor_indexes=0,
-            feet_indexes=0,
-            device=str(env.device),
-            recovery_dir=recovery_dir,
-        )
+        files = self._collect_motion_files(motion_dir)
+        if not files:
+            raise FileNotFoundError(f"No AMP motion .npz files found in: {motion_dir}")
 
-        self.walk_run_frames[motion_dir] = self._concat_frames(loader.motion_data)
-        motion_count = self.walk_run_frames[motion_dir]["root_pos"].shape[0]
-        print(f"[MotionResetManager] Loaded {len(loader.motion_data)} clips, {motion_count} frames from {motion_dir}")
+        frame_lists: dict[str, list[torch.Tensor]] = {
+            "root_pos": [],
+            "root_quat": [],
+            "root_lin_vel": [],
+            "root_ang_vel": [],
+            "joint_pos": [],
+            "joint_vel": [],
+        }
+        for file in files:
+            data = np.load(file)
+            for key in ("body_pos_w", "body_quat_w", "body_lin_vel_w", "body_ang_vel_w", "joint_pos", "joint_vel"):
+                if key not in data:
+                    raise KeyError(f"AMP motion file '{file}' is missing key '{key}'.")
 
-        if loader.motion_data_recovery:
-            self.recovery_frames[motion_dir] = self._concat_frames(loader.motion_data_recovery)
-            recovery_count = self.recovery_frames[motion_dir]["root_pos"].shape[0]
-            print(f"[MotionResetManager] Loaded {len(loader.motion_data_recovery)} recovery clips, {recovery_count} frames from {recovery_dir}")
+            body_pos_w = data["body_pos_w"]
+            if body_pos_w.shape[1] != len(all_body_names):
+                raise ValueError(
+                    f"AMP motion file '{file}' has {body_pos_w.shape[1]} bodies; "
+                    f"expected {len(all_body_names)}."
+                )
+            frame_lists["root_pos"].append(
+                torch.as_tensor(body_pos_w[:, root_index, :], device=device, dtype=torch.float32)
+            )
+            frame_lists["root_quat"].append(
+                torch.as_tensor(data["body_quat_w"][:, root_index, :], device=device, dtype=torch.float32)
+            )
+            frame_lists["root_lin_vel"].append(
+                torch.as_tensor(data["body_lin_vel_w"][:, root_index, :], device=device, dtype=torch.float32)
+            )
+            frame_lists["root_ang_vel"].append(
+                torch.as_tensor(data["body_ang_vel_w"][:, root_index, :], device=device, dtype=torch.float32)
+            )
+            frame_lists["joint_pos"].append(torch.as_tensor(data["joint_pos"], device=device, dtype=torch.float32))
+            frame_lists["joint_vel"].append(torch.as_tensor(data["joint_vel"], device=device, dtype=torch.float32))
+
+        self._frames[cache_key] = {key: torch.cat(value, dim=0) for key, value in frame_lists.items()}
 
     # ------------------------------------------------------------------
     # Reset
@@ -71,40 +98,23 @@ class MotionResetManager:
         env: ManagerBasedRlEnv,
         env_ids: torch.Tensor | None,
         motion_dir: str,
+        root_name: str,
+        all_body_names: tuple[str, ...],
         asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
     ) -> None:
+        motion_dir = str(Path(motion_dir).expanduser().resolve())
+        root_index = all_body_names.index(root_name)
+        cache_key = f"{motion_dir}:{root_index}:{tuple(all_body_names)}"
+        if cache_key not in self._frames:
+            self.init(motion_dir, env.device, root_name, all_body_names)
+
         if env_ids is None:
-            env_ids = torch.arange(env.num_envs, device=env.device, dtype=torch.int)
+            env_ids = torch.arange(env.num_envs, device=env.device, dtype=torch.long)
 
         if len(env_ids) == 0:
             return
 
-        # Split into delay envs and normal envs.
-        delay_mask = self._get_delay_env_mask(env)
-        if delay_mask is not None:
-            is_delay = delay_mask[env_ids]
-            delay_ids = env_ids[is_delay]
-            normal_ids = env_ids[~is_delay]
-        else:
-            delay_ids = env_ids[:0]  # empty
-            normal_ids = env_ids
-
-        # Reset normal envs with walk/run data.
-        if len(normal_ids) > 0:
-            self._write_reset_state(env, normal_ids, self.walk_run_frames[motion_dir], asset_cfg)
-
-        # Reset delay envs with recovery data (fallback to walk/run if unavailable).
-        if len(delay_ids) > 0:
-            recovery = self.recovery_frames.get(motion_dir)
-            frames = recovery if recovery is not None else self.walk_run_frames[motion_dir]
-            self._write_reset_state(env, delay_ids, frames, asset_cfg)
-
-    def _get_delay_env_mask(self, env: ManagerBasedRlEnv) -> torch.Tensor | None:
-        """Get delay env mask from DelayedTerminationManager if installed."""
-        tm = env.termination_manager
-        if isinstance(tm, DelayedTerminationManager):
-            return tm._delay_env_mask
-        return None
+        self._write_reset_state(env, env_ids, self._frames[cache_key], asset_cfg)
 
     def _write_reset_state(
         self,
@@ -122,13 +132,11 @@ class MotionResetManager:
         # --- Root pose ---
         root_pos = frames["root_pos"][idx]
         root_quat = frames["root_quat"][idx]
-        positions = env.scene.env_origins[env_ids].clone()
+        root_pos = root_pos.clone()
+        root_pos[:, :2] += env.scene.env_origins[env_ids, :2]
+        root_pos[:, 2] += env.scene.env_origins[env_ids, 2]
 
-        # --- Key Fix for terrain ---
-        terrain_z = positions[:, 2].clone()
-        positions[:, 2] = terrain_z + root_pos[:, 2]
-
-        root_pose = torch.cat([positions, root_quat], dim=-1)
+        root_pose = torch.cat([root_pos, root_quat], dim=-1)
         asset.write_root_link_pose_to_sim(root_pose, env_ids=env_ids)
 
         # --- Root velocity ---
@@ -162,28 +170,11 @@ class MotionResetManager:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _concat_frames(motions: list[dict]) -> dict[str, torch.Tensor]:
-        root_pos_list = []
-        root_quat_list = []
-        root_lin_vel_list = []
-        root_ang_vel_list = []
-        joint_pos_list = []
-        joint_vel_list = []
-        for motion in motions:
-            root_pos_list.append(motion["body_pos_w"][:, 0, :])
-            root_quat_list.append(motion["body_quat_w"][:, 0, :])
-            root_lin_vel_list.append(motion["body_lin_vel_w"][:, 0, :])
-            root_ang_vel_list.append(motion["body_ang_vel_w"][:, 0, :])
-            joint_pos_list.append(motion["dof_pos"])
-            joint_vel_list.append(motion["dof_vel"])
-        return {
-            "root_pos": torch.cat(root_pos_list, dim=0),
-            "root_quat": torch.cat(root_quat_list, dim=0),
-            "root_lin_vel": torch.cat(root_lin_vel_list, dim=0),
-            "root_ang_vel": torch.cat(root_ang_vel_list, dim=0),
-            "joint_pos": torch.cat(joint_pos_list, dim=0),
-            "joint_vel": torch.cat(joint_vel_list, dim=0),
-        }
+    def _collect_motion_files(motion_dir: str) -> list[Path]:
+        path = Path(motion_dir)
+        if path.is_file() and path.suffix == ".npz":
+            return [path]
+        return sorted(path.rglob("*.npz"))
 
 
 # ------------------------------------------------------------------
@@ -194,44 +185,33 @@ def init_motion_loader(
     env: ManagerBasedRlEnv,
     env_ids: torch.Tensor | None,
     motion_dir: str,
-    recovery_dir: str | None = None,
-    delay_reset_env_ratio: float = 0.0,
-    max_delay_steps: int = 0,
+    root_name: str,
+    all_body_names: tuple[str, ...],
 ) -> None:
-    """Startup event: load motion data and optionally install delayed termination."""
+    """Startup event: load normal AMP motion data."""
+    del env_ids
     MotionResetManager.get().init(
-        env=env,
         motion_dir=motion_dir,
-        recovery_dir=recovery_dir,
+        device=env.device,
+        root_name=root_name,
+        all_body_names=all_body_names,
     )
-
-    # Install DelayedTerminationManager if requested.
-    num_delay = int(env.num_envs * delay_reset_env_ratio)
-    if num_delay > 0 and max_delay_steps > 0:
-        delay_mask = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
-        delay_indices = torch.randperm(env.num_envs, device=env.device)[:num_delay]
-        delay_mask[delay_indices] = True
-        env.termination_manager = DelayedTerminationManager(
-            base=env.termination_manager,
-            delay_env_mask=delay_mask,
-            max_delay_steps=max_delay_steps,
-        )
-        print(
-            "[init_motion_loader] DelayedTerminationManager installed: "
-            f"{num_delay}/{env.num_envs} envs, max_delay_steps={max_delay_steps}"
-        )
 
 
 def reset_from_motion_data(
     env: ManagerBasedRlEnv,
     env_ids: torch.Tensor | None,
     motion_dir: str,
+    root_name: str,
+    all_body_names: tuple[str, ...],
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> None:
-    """Reset event: reset envs from random motion frames, with delay support."""
+    """Reset event: reset envs from random normal motion frames."""
     MotionResetManager.get().reset(
         env=env,
         env_ids=env_ids,
         motion_dir=motion_dir,
+        root_name=root_name,
+        all_body_names=all_body_names,
         asset_cfg=asset_cfg,
     )

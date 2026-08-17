@@ -2,7 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import List
+from typing import Any, List
 
 from mjlab.rl import (
   RslRlModelCfg,
@@ -13,9 +13,65 @@ from mjlab.rl import (
 # AMP motion data directory (npz files)
 _MOTION_DATA_DIR = os.path.join(
   os.path.dirname(os.path.abspath(__file__)),
-  os.pardir, os.pardir, os.pardir, os.pardir,
-  "assets", "motions", "g1", "amp",
+  "motions", "WalkandRun",
 )
+
+_AMP_BODY_NAMES = (
+  "pelvis",
+  "left_hip_roll_link",
+  "left_knee_link",
+  "left_ankle_roll_link",
+  "right_hip_roll_link",
+  "right_knee_link",
+  "right_ankle_roll_link",
+  "left_shoulder_roll_link",
+  "left_elbow_link",
+  "left_wrist_yaw_link",
+  "right_shoulder_roll_link",
+  "right_elbow_link",
+  "right_wrist_yaw_link",
+)
+
+_AMP_ALL_BODY_NAMES = (
+  "pelvis",
+  "left_hip_pitch_link",
+  "left_hip_roll_link",
+  "left_hip_yaw_link",
+  "left_knee_link",
+  "left_ankle_pitch_link",
+  "left_ankle_roll_link",
+  "right_hip_pitch_link",
+  "right_hip_roll_link",
+  "right_hip_yaw_link",
+  "right_knee_link",
+  "right_ankle_pitch_link",
+  "right_ankle_roll_link",
+  "waist_yaw_link",
+  "waist_roll_link",
+  "torso_link",
+  "left_shoulder_pitch_link",
+  "left_shoulder_roll_link",
+  "left_shoulder_yaw_link",
+  "left_elbow_link",
+  "left_wrist_roll_link",
+  "left_wrist_pitch_link",
+  "left_wrist_yaw_link",
+  "right_shoulder_pitch_link",
+  "right_shoulder_roll_link",
+  "right_shoulder_yaw_link",
+  "right_elbow_link",
+  "right_wrist_roll_link",
+  "right_wrist_pitch_link",
+  "right_wrist_yaw_link",
+)
+
+
+@dataclass
+class RslRlAmpAlgorithmCfg(RslRlPpoAlgorithmCfg):
+  """PPO algorithm config with nested AMP settings for frog_rl."""
+
+  amp_cfg: dict = field(default_factory=dict)
+  rnd_cfg: dict[str, Any] | None = None
 
 
 @dataclass
@@ -49,7 +105,7 @@ def g1_amp_ppo_runner_cfg() -> RslRlAmpRunnerCfg:
       activation="elu",
       obs_normalization=True,
     ),
-    algorithm=RslRlPpoAlgorithmCfg(
+    algorithm=RslRlAmpAlgorithmCfg(
       value_loss_coef=1.0,
       use_clipped_value_loss=True,
       clip_param=0.2,
@@ -62,7 +118,28 @@ def g1_amp_ppo_runner_cfg() -> RslRlAmpRunnerCfg:
       lam=0.95,
       desired_kl=0.01,
       max_grad_norm=1.0,
-      class_name="AMPPPO",
+      class_name="frog_mjlab.tasks.amp.rl.amp_ppo:MjlabAMPPPO",
+      amp_cfg={
+        "amp_reward_coef": 0.1,
+        "amp_replay_buffer_size": 2000000,
+        "amp_discr_hidden_dims": [1024, 512],
+        "amp_discr_activation": "relu",
+        "discriminator_lr": 1.0e-3,
+        "grad_pen_coef": 10.0,
+        "amp_trunk_weight_decay": 1.0e-3,
+        "amp_head_weight_decay": 1.0e-2,
+        "amp_task_reward_lerp": 0.75,
+        "expert_state_key": "amp",
+        "motion_loader_class_name": (
+          "frog_mjlab.tasks.amp.utils.motion_loader:AMPBodyStateMotionLoader"
+        ),
+        "motion_loader_kwargs": {
+          "motion_files": os.path.normpath(_MOTION_DATA_DIR),
+          "body_names": _AMP_BODY_NAMES,
+          "anchor_name": "torso_link",
+          "all_body_names": _AMP_ALL_BODY_NAMES,
+        },
+      },
     ),
     experiment_name="g1_amp_locomotion",
     logger="tensorboard",
@@ -76,20 +153,6 @@ def g1_amp_ppo_runner_cfg() -> RslRlAmpRunnerCfg:
     amp_task_reward_lerp=0.75,
     amp_discr_hidden_dims=[1024, 512, 256],
     min_normalized_std=[0.05] * 29,
-    amp_body_names=(
-      "pelvis",
-      "left_hip_roll_link",
-      "left_knee_link",
-      "left_ankle_roll_link",
-      "right_hip_roll_link",
-      "right_knee_link",
-      "right_ankle_roll_link",
-      "left_shoulder_roll_link",
-      "left_elbow_link",
-      "left_wrist_yaw_link",
-      "right_shoulder_roll_link",
-      "right_elbow_link",
-      "right_wrist_yaw_link",
-    ),
+    amp_body_names=_AMP_BODY_NAMES,
     amp_anchor_name="torso_link",
   )

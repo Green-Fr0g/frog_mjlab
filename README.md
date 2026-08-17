@@ -54,8 +54,7 @@ python scripts/list_envs.py --keyword Unitree
 - `Unitree-H2-Flat` — H2 平地速度跟踪（使用 `h2.xml`）
 
 **AMP 动作模仿**
-- `Unitree-G1-AMP-Rough` — G1 AMP 粗糙地形
-- `Unitree-G1-AMP-Flat` — G1 AMP 平地
+- `Unitree-G1-AMP` — G1 AMP 平地
 
 **动作模仿（mimic / tracking）**
 - `Unitree-G1-Tracking` — G1 动作模仿（含状态估计）
@@ -110,7 +109,7 @@ python scripts/frog_rl/train.py Unitree-G1-23Dof-Tracking-No-State-Estimation \
 **AMP 动作模仿**（动作数据在 `source/frog_mjlab/frog_mjlab/assets/motions/g1/amp/`，已内置 WalkandRun + Recovery npz）：
 
 ```bash
-python scripts/frog_rl/train.py Unitree-G1-AMP-Flat --env.scene.num-envs=4096
+python scripts/frog_rl/train.py Unitree-G1-AMP --env.scene.num-envs=4096
 ```
 
 训练日志默认保存到：

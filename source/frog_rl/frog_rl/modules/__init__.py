@@ -1,37 +1,25 @@
-# Copyright (c) 2021-2024, The RSL-RL Project Developers.
-# All rights reserved.
-# Original code is licensed under the BSD-3-Clause license.
-#
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
+# Copyright (c) 2021-2026, ETH Zurich and NVIDIA CORPORATION
 # All rights reserved.
 #
-# Copyright (c) 2025-2026, The Legged Lab Project Developers.
-# All rights reserved.
-#
-# Copyright (c) 2025-2026, The TienKung-Lab Project Developers.
-# All rights reserved.
-# Modifications are licensed under the BSD-3-Clause license.
-#
-# This file contains code derived from the RSL-RL, Isaac Lab, and Legged Lab Projects,
-# with additional modifications by the TienKung-Lab Project,
-# and is distributed under the BSD-3-Clause license.
+# SPDX-License-Identifier: BSD-3-Clause
 
-"""Definitions for neural-network components for RL-agents."""
+"""Building blocks for neural models."""
 
-from .actor_critic import ActorCritic
-from .actor_critic_recurrent import ActorCriticRecurrent
-from .discriminator import Discriminator
-from .normalizer import EmpiricalNormalization
-from .rnd import RandomNetworkDistillation
-from .student_teacher import StudentTeacher
-from .student_teacher_recurrent import StudentTeacherRecurrent
+from .cnn import CNN
+from .distribution import BetaDistribution, Distribution, GaussianDistribution, HeteroscedasticGaussianDistribution
+from .mlp import MLP
+from .normalization import EmpiricalDiscountedVariationNormalization, EmpiricalNormalization
+from .rnn import RNN, HiddenState
 
 __all__ = [
-    "ActorCritic",
-    "ActorCriticRecurrent",
+    "CNN",
+    "MLP",
+    "RNN",
+    "BetaDistribution",
+    "Distribution",
+    "EmpiricalDiscountedVariationNormalization",
     "EmpiricalNormalization",
-    "RandomNetworkDistillation",
-    "StudentTeacher",
-    "StudentTeacherRecurrent",
-    "Discriminator",
+    "GaussianDistribution",
+    "HeteroscedasticGaussianDistribution",
+    "HiddenState",
 ]
