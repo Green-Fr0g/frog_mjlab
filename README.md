@@ -87,7 +87,18 @@ python scripts/train.py Unitree-G1-Tracking-No-State-Estimation \
   --motion_file=src/frog_mjlab/assets/motions/g1/dance1_subject2.npz \
   --env.scene.num-envs=4096
 ```
+**G1 23 DoF 动作模仿**（数据在 `src/frog_mjlab/assets/motions/g1_23dof/`，需用 `--robot g1_23dof` 转换）：
 
+```bash
+python scripts/csv_to_npz.py \
+  --input-file src/frog_mjlab/assets/motions/g1_23dof/dance1_subject2.csv \
+  --output-name dance1_subject2.npz \
+  --input-fps 30 --output-fps 50 --robot g1_23dof
+
+python scripts/train.py Unitree-G1-23Dof-Tracking-No-State-Estimation \
+  --motion_file=src/frog_mjlab/assets/motions/g1_23dof/dance1_subject2.npz \
+  --env.scene.num-envs=4096
+```
 训练日志默认保存到：
 
 - `logs/rsl_rl/g1_locomotion/<time_stamp_run>/`
@@ -121,7 +132,7 @@ src/frog_mjlab/
 ├── assets/
 │   ├── g1/                     # G1 机器人常量与执行器配置（模型文件在 model/g1/）
 │   ├── h2/                     # H2 机器人常量与执行器配置（模型文件在 model/h2/）
-│   └── motions/g1/             # 动作模仿数据（csv + npz）
+│   └── motions/g1/, g1_23dof/   # 动作模仿数据（csv + npz）
 ├── tasks/
 │   ├── locomotion/             # 速度跟踪任务（G1 / H2）
 │   │   ├── locomotion_env_cfg.py # 任务配置工厂
