@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools<82.0.0", "wheel", "toml"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+    "frog_mjlab",
+    "frog_mjlab.assets",
+    "frog_mjlab.assets.g1",
+    "frog_mjlab.assets.h2",
+    "frog_mjlab.assets.motions",
+    "frog_mjlab.assets.motions.g1",
+    "frog_mjlab.assets.motions.g1_23dof",
+    "frog_mjlab.tasks",
+    "frog_mjlab.tasks.locomotion",
+    "frog_mjlab.tasks.locomotion.mdp",
+    "frog_mjlab.tasks.locomotion.rl",
+    "frog_mjlab.tasks.locomotion.config",
+    "frog_mjlab.tasks.locomotion.config.g1_29",
+    "frog_mjlab.tasks.locomotion.config.h2",
+    "frog_mjlab.tasks.amp",
+    "frog_mjlab.tasks.amp.config",
+    "frog_mjlab.tasks.amp.config.g1",
+    "frog_mjlab.tasks.amp.mdp",
+    "frog_mjlab.tasks.amp.rl",
+    "frog_mjlab.tasks.tracking",
+    "frog_mjlab.tasks.tracking.mdp",
+    "frog_mjlab.tasks.tracking.rl",
+    "frog_mjlab.tasks.tracking.config",
+    "frog_mjlab.tasks.tracking.config.g1",
+    "frog_mjlab.tasks.tracking.config.g1_23dof",
+]

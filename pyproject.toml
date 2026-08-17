@@ -1,19 +1,11 @@
 [project]
 name = "frog-mjlab"
 version = "0.1.0"
-description = "G1 locomotion training task built as an external extension of mjlab (following the AMP_mjlab pattern)."
+description = "G1/H2 locomotion and motion-mimic training tasks built as external extensions of mjlab (frog_lab layout)."
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = [
-    "mjlab==1.2.0",
-    "mujoco-warp==3.8.1",
-    "warp-lang==1.12.0",
-    "scipy==1.17.0",
-]
 
-[project.scripts]
-frog-mjlab = "frog_mjlab:main"
-
-[build-system]
-requires = ["uv_build>=0.11.29,<0.12.0"]
-build-backend = "uv_build"
+# The Python packages live under source/ (frog_lab layout):
+#   source/frog_mjlab  -> frog_mjlab task package   (pip install -e source/frog_mjlab)
+#   source/frog_rl     -> frog_rl algorithm package (pip install -e source/frog_rl)
+# Or run directly with: PYTHONPATH="$PWD/source"
