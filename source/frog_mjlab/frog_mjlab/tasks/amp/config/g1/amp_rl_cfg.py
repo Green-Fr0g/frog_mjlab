@@ -2,7 +2,7 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Any, List
+from typing import Any
 
 from mjlab.rl import (
   RslRlModelCfg,
@@ -76,15 +76,7 @@ class RslRlAmpAlgorithmCfg(RslRlPpoAlgorithmCfg):
 
 @dataclass
 class RslRlAmpRunnerCfg(RslRlOnPolicyRunnerCfg):
-  """Extended runner config with AMP-specific parameters."""
-  amp_reward_coef: float = 0.1
-  amp_motion_files: str = ""
-  amp_num_preload_transitions: int = 200000
-  amp_task_reward_lerp: float = 0.75
-  amp_discr_hidden_dims: List[int] = field(default_factory=lambda: [1024, 512, 256])
-  min_normalized_std: List[float] = field(default_factory=lambda: [0.05] * 29)
-  amp_body_names: tuple = ()
-  amp_anchor_name: str = ""
+  """Runner config for the G1 AMP task."""
 
 
 def g1_amp_ppo_runner_cfg() -> RslRlAmpRunnerCfg:
@@ -118,7 +110,7 @@ def g1_amp_ppo_runner_cfg() -> RslRlAmpRunnerCfg:
       lam=0.95,
       desired_kl=0.01,
       max_grad_norm=1.0,
-      class_name="frog_mjlab.tasks.amp.rl.amp_ppo:MjlabAMPPPO",
+      class_name="AMPPPO",
       amp_cfg={
         "amp_reward_coef": 0.1,
         "amp_replay_buffer_size": 2000000,
@@ -146,13 +138,4 @@ def g1_amp_ppo_runner_cfg() -> RslRlAmpRunnerCfg:
     save_interval=100,
     num_steps_per_env=24,
     max_iterations=100001,
-    # AMP parameters
-    amp_reward_coef=0.1,
-    amp_motion_files=os.path.normpath(_MOTION_DATA_DIR),
-    amp_num_preload_transitions=200000,
-    amp_task_reward_lerp=0.75,
-    amp_discr_hidden_dims=[1024, 512, 256],
-    min_normalized_std=[0.05] * 29,
-    amp_body_names=_AMP_BODY_NAMES,
-    amp_anchor_name="torso_link",
   )

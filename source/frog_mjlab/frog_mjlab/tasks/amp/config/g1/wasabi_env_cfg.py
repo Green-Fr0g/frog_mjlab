@@ -6,7 +6,7 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 
 from frog_mjlab.tasks.amp.wasabi_env_cfg import make_wasabi_env_cfg
 
-from .env_cfgs import g1_amp_env_cfg
+from .amp_env_cfgs import g1_amp_env_cfg
 
 
 def g1_wasabi_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:

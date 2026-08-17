@@ -1,8 +1,8 @@
 from mjlab.tasks.registry import register_mjlab_task
 from frog_mjlab.tasks.amp.rl import AMPOnPolicyRunner
 
-from .env_cfgs import g1_amp_env_cfg
-from .rl_cfg import g1_amp_ppo_runner_cfg
+from .amp_env_cfgs import g1_amp_env_cfg
+from .amp_rl_cfg import g1_amp_ppo_runner_cfg
 from .wasabi_env_cfg import g1_wasabi_flat_env_cfg
 from .wasabi_rl_cfg import g1_wasabi_ppo_runner_cfg
 

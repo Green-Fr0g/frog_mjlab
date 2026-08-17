@@ -132,7 +132,7 @@ class AMPPPO(PPO):
 
         self.amp_storage.insert(self._current_amp_state, next_amp_state)
         amp_reward, _ = self.discriminator.reward(self._current_amp_state, next_amp_state, rewards, self.amp_normalizer)
-        super().process_env_step(obs, amp_reward.unsqueeze(1), dones, extras)
+        super().process_env_step(obs, amp_reward.reshape(-1), dones, extras)
         self._current_amp_state = next_amp_state
 
     def update(self) -> dict[str, float]:
