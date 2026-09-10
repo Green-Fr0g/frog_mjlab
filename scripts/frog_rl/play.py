@@ -151,18 +151,18 @@ def run_play(task_id: str, cfg: PlayConfig):
     env_cfg.terminations = {}
     print("[INFO]: Terminations disabled")
 
-  # Check if this is a tracking task by checking for motion command.
-  is_tracking_task = "motion" in env_cfg.commands and isinstance(
+  # Check if this is a mimic task by checking for motion command.
+  is_mimic_task = "motion" in env_cfg.commands and isinstance(
     env_cfg.commands["motion"], MotionCommandCfg
   )
 
-  if is_tracking_task and cfg._demo_mode:
+  if is_mimic_task and cfg._demo_mode:
     # Demo mode: use uniform sampling to see more diversity with num_envs > 1.
     motion_cmd = env_cfg.commands["motion"]
     assert isinstance(motion_cmd, MotionCommandCfg)
     motion_cmd.sampling_mode = "uniform"
 
-  if is_tracking_task:
+  if is_mimic_task:
     motion_cmd = env_cfg.commands["motion"]
     assert isinstance(motion_cmd, MotionCommandCfg)
 

@@ -8,7 +8,7 @@
 - **动作模仿（mimic / tracking）**：G1 模仿参考动作序列（BeyondMimic 风格）
 - **AMP 动作模仿**：G1 AMP（对抗式运动先验）行走 / 恢复
 
-- 基于 `mjlab.rl` 的 PPO / AMP 训练（`LocomotionOnPolicyRunner` / `MotionTrackingOnPolicyRunner` / `AMPOnPolicyRunner`）
+- 基于 `mjlab.rl` 的 PPO / AMP 训练（`LocomotionOnPolicyRunner` / `MotionMimicOnPolicyRunner` / `AMPOnPolicyRunner`）
 - 算法包 `frog_rl`（源自 AMP_mjlab 的 vendored RSL-RL，含 `AMPPPO` / `AmpOnPolicyRunner`）
 - 训练与回放管线一致，训练/回放时自动导出 ONNX 策略
 - 支持粗糙地形（Rough）与平地（Flat）两种配置
@@ -42,25 +42,25 @@ export PYTHONPATH="$PWD/source/frog_mjlab:$PWD/source/frog_rl"
 ## 列出可用任务
 
 ```bash
-python scripts/list_envs.py --keyword Unitree
+python scripts/list_envs.py --keyword FrogMjlab
 ```
 
-本工程注册的任务（G1 有 29 DoF 与 23 DoF 两个不同变体，任务 ID 已标注 DoF 数）：
+本工程注册的任务（G1 有 29 DoF 与 23 DoF 两个不同变体）：
 
 **速度跟踪（locomotion）**
-- `Unitree-G1-29-Rough` — G1 **29 DoF** 粗糙地形速度跟踪（使用 `g1.xml`）
-- `Unitree-G1-29-Flat` — G1 **29 DoF** 平地速度跟踪（使用 `g1.xml`）
-- `Unitree-H2-Rough` — H2 粗糙地形速度跟踪（使用 `h2.xml`）
-- `Unitree-H2-Flat` — H2 平地速度跟踪（使用 `h2.xml`）
+- `FrogMjlab-G1-Rough` — G1 **29 DoF** 粗糙地形速度跟踪（使用 `g1.xml`）
+- `FrogMjlab-G1-Flat` — G1 **29 DoF** 平地速度跟踪（使用 `g1.xml`）
+- `FrogMjlab-H2-Rough` — H2 粗糙地形速度跟踪（使用 `h2.xml`）
+- `FrogMjlab-H2-Flat` — H2 平地速度跟踪（使用 `h2.xml`）
 
 **AMP 动作模仿**
-- `Unitree-G1-AMP` — G1 AMP 平地
+- `FrogMjlab-G1-AMP` — G1 AMP 平地
 
 **动作模仿（mimic / tracking）**
-- `Unitree-G1-Tracking` — G1 动作模仿（含状态估计）
-- `Unitree-G1-Tracking-No-State-Estimation` — G1 动作模仿（不含状态估计）
-- `Unitree-G1-23Dof-Tracking` — G1 23 DoF 动作模仿
-- `Unitree-G1-23Dof-Tracking-No-State-Estimation` — G1 23 DoF 动作模仿（不含状态估计）
+- `FrogMjlab-G1-Mimic` — G1 动作模仿（含状态估计）
+- `FrogMjlab-G1-Mimic-No-State-Estimation` — G1 动作模仿（不含状态估计）
+- `FrogMjlab-G1-23Dof-Mimic` — G1 23 DoF 动作模仿
+- `FrogMjlab-G1-23Dof-Mimic-No-State-Estimation` — G1 23 DoF 动作模仿（不含状态估计）
 
 > 说明：G1 的 23 DoF 变体（`g1_23dof.xml`）未注册为速度跟踪任务，因为其模型缺少
 > `left_foot`/`right_foot` 站点，无法复用 velocity 任务的 foot 观测/奖励；但它可用作动作模仿任务。
@@ -70,59 +70,74 @@ python scripts/list_envs.py --keyword Unitree
 **速度跟踪**
 
 ```bash
-python scripts/train.py Unitree-G1-29-Flat --env.scene.num-envs=4096
-python scripts/train.py Unitree-H2-Flat --env.scene.num-envs=4096
+python scripts/train.py FrogMjlab-G1-Flat --env.scene.num-envs=4096
+python scripts/train.py FrogMjlab-H2-Flat --env.scene.num-envs=4096
 ```
 
 **动作模仿（mimic）**
 
-先准备动作文件（已内置示例 `src/frog_mjlab/assets/motions/g1/dance1_subject2.csv`），
-转成 npz（示例 npz 已预生成在同目录）：
+转换脚本与 `frog_lab/scripts/mimic/` 结构对齐：**配置文件驱动 + 机器人注册表**，
+npz 会写入 `robot_name` / `joint_names` / `body_names` / `root_link_name` 元数据，
+因此与 frog_lab 产出的 npz 可以互换使用。
+
+原始 CSV 在 `motion_data/motion_tracking/<robot>/`，转换配置在 `motion_data/config/*.yaml`：
 
 ```bash
-python scripts/csv_to_npz.py \
-  --input-file src/frog_mjlab/assets/motions/g1/dance1_subject2.csv \
-  --output-name dance1_subject2.npz \
-  --input-fps 30 --output-fps 50 --robot g1
+# G1 29 DoF
+python scripts/mimic/csv_to_npz.py \
+  --config motion_data/config/g1.yaml \
+  --output_name source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1/motions/dance1_subject2.npz
+
+# G1 23 DoF
+python scripts/mimic/csv_to_npz.py \
+  --config motion_data/config/g1_23dof.yaml \
+  --output_name source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1_23dof/motions/dance1_subject2.npz
+```
+
+批量转换（自动发现 yaml / csv 并对输出名去重；额外参数会透传给 `csv_to_npz.py`）：
+
+```bash
+python scripts/mimic/batch_csv_to_npz.py \
+  --config_dir motion_data/config \
+  --output_dir /tmp/motions
+```
+
+回放转换后的动作（自动从 npz 的 `robot_name` 选择对应 mimic 任务）：
+
+```bash
+python scripts/mimic/replay_npz.py \
+  --motion_file source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1/motions/dance1_subject2.npz
 ```
 
 然后训练：
 
 ```bash
-python scripts/frog_rl/train.py Unitree-G1-Tracking-No-State-Estimation \
-  --motion_file=source/frog_mjlab/frog_mjlab/assets/motions/g1/dance1_subject2.npz \
+python scripts/frog_rl/train.py FrogMjlab-G1-Mimic-No-State-Estimation \
+  --motion_file=source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1/motions/dance1_subject2.npz \
   --env.scene.num-envs=4096
-```
-**G1 23 DoF 动作模仿**（数据在 `source/frog_mjlab/frog_mjlab/assets/motions/g1_23dof/`，需用 `--robot g1_23dof` 转换）：
 
-```bash
-python scripts/mimic/csv_to_npz.py \
-  --input-file source/frog_mjlab/frog_mjlab/assets/motions/g1_23dof/dance1_subject2.csv \
-  --output-name dance1_subject2.npz \
-  --input-fps 30 --output-fps 50 --robot g1_23dof
-
-python scripts/frog_rl/train.py Unitree-G1-23Dof-Tracking-No-State-Estimation \
-  --motion_file=source/frog_mjlab/frog_mjlab/assets/motions/g1_23dof/dance1_subject2.npz \
+python scripts/frog_rl/train.py FrogMjlab-G1-23Dof-Mimic-No-State-Estimation \
+  --motion_file=source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1_23dof/motions/dance1_subject2.npz \
   --env.scene.num-envs=4096
 ```
 
-**AMP 动作模仿**（动作数据在 `source/frog_mjlab/frog_mjlab/assets/motions/g1/amp/`，已内置 WalkandRun + Recovery npz）：
+**AMP 动作模仿**（动作数据在 `source/frog_mjlab/frog_mjlab/tasks/amp/config/g1/motions/`，已内置 WalkandRun + Recovery npz）：
 
 ```bash
-python scripts/frog_rl/train.py Unitree-G1-AMP --env.scene.num-envs=4096
+python scripts/frog_rl/train.py FrogMjlab-G1-AMP --env.scene.num-envs=4096
 ```
 
 训练日志默认保存到：
 
 - `logs/rsl_rl/g1_locomotion/<time_stamp_run>/`
-- `logs/rsl_rl/g1_tracking/<time_stamp_run>/`
+- `logs/rsl_rl/g1_mimic/<time_stamp_run>/`
 - `logs/rsl_rl/h2_locomotion/<time_stamp_run>/`
-- `logs/rsl_rl/g1_amp_locomotion/<time_stamp_run>/`
+- `logs/rsl_rl/g1_amp_flat/<time_stamp_run>/`
 
 ## 回放 / 可视化
 
 ```bash
-python scripts/frog_rl/play.py Unitree-G1-29-Rough \
+python scripts/frog_rl/play.py FrogMjlab-G1-Rough \
   --checkpoint-file logs/rsl_rl/g1_locomotion/<run_dir>/model_<iter>.pt
 ```
 
@@ -134,7 +149,7 @@ python scripts/frog_rl/play.py Unitree-G1-29-Rough \
 model/                         # 机器人模型（MJCF XML + STL mesh）
 ├── g1/
 └── h2/
-motion_data/                   # 原始动作数据（raw CSV）
+motion_data/                   # 原始动作数据（raw CSV）+ 转换配置（config/*.yaml）
 source/
 ├── frog_mjlab/                # 任务/环境包（可编辑安装）
 │   ├── pyproject.toml, setup.py
@@ -144,7 +159,7 @@ source/
 │       └── tasks/
 │           ├── locomotion/    # 速度跟踪（G1 / H2）
 │           ├── amp/           # AMP 动作模仿（含 ampmotion_loader, config/g1, mdp, rl）
-│           └── tracking/      # mimic 动作模仿
+│           └── mimic/      # mimic 动作模仿
 └── frog_rl/                   # 算法包（源自 RSL-RL，含 AMPPPO / AmpOnPolicyRunner）
     ├── pyproject.toml, setup.py
     └── frog_rl/

@@ -18,26 +18,32 @@ def init_wasabi_motion_reference(
   env: ManagerBasedRlEnv,
   env_ids: torch.Tensor | None,
   motion_files: str,
-  body_names: tuple[str, ...],
-  anchor_name: str,
-  root_name: str,
-  all_body_names: tuple[str, ...],
-  joint_names: tuple[str, ...],
+  body_names: tuple[str, ...] = (),
+  anchor_name: str = "",
+  root_name: str = "",
+  all_body_names: tuple[str, ...] = (),
+  joint_names: tuple[str, ...] = (),
   time_between_frames: float = 0.02,
 ) -> None:
+  """Load the WASABI reference motions, adopting the live robot layout.
+
+  The robot entity is the source of truth for body/joint ordering, so motion
+  data is reordered onto it by name (no hard-coded layout required).  Names
+  supplied by the cfg are validated against the entity when present.
+  """
   del env_ids
   asset = env.scene["robot"]
-  actual_body_names = tuple(getattr(asset, "body_names", ()))
-  if actual_body_names and actual_body_names != tuple(all_body_names):
+  actual_body_names = tuple(getattr(asset, "body_names", ()) or ())
+  actual_joint_names = tuple(getattr(asset, "joint_names", ()) or ())
+  if actual_body_names and tuple(all_body_names) and set(actual_body_names) != set(all_body_names):
     raise ValueError(
-      "WASABI robot/motion body order mismatch. "
-      f"Robot={actual_body_names}, motion={tuple(all_body_names)}"
+      "WASABI robot/cfg body name mismatch. "
+      f"Robot={actual_body_names}, cfg={tuple(all_body_names)}"
     )
-  actual_joint_names = tuple(getattr(asset, "joint_names", ()))
-  if actual_joint_names and actual_joint_names != tuple(joint_names):
+  if actual_joint_names and tuple(joint_names) and set(actual_joint_names) != set(joint_names):
     raise ValueError(
-      "WASABI robot/motion joint order mismatch. "
-      f"Robot={actual_joint_names}, motion={tuple(joint_names)}"
+      "WASABI robot/cfg joint name mismatch. "
+      f"Robot={actual_joint_names}, cfg={tuple(joint_names)}"
     )
   WasabiMotionReference.initialize_for_env(
     env,
@@ -45,8 +51,8 @@ def init_wasabi_motion_reference(
     body_names=body_names,
     anchor_name=anchor_name,
     root_name=root_name,
-    all_body_names=all_body_names,
-    joint_names=joint_names,
+    all_body_names=actual_body_names or tuple(all_body_names),
+    joint_names=actual_joint_names or tuple(joint_names),
     time_between_frames=time_between_frames,
   )
 

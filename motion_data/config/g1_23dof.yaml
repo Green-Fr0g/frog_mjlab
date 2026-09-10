@@ -1,0 +1,45 @@
+# Motion conversion config for the Unitree G1 (23 DoF) mimic task.
+# Consumed by scripts/mimic/csv_to_npz.py and scripts/mimic/batch_csv_to_npz.py.
+# Format is aligned with frog_lab's motion_data/config/g1.yaml
+# ("g1_23dof" here maps to frog_lab's "g1_23" registry key).
+#
+# NOTE: relative paths below are resolved against *this file's directory*
+#       (motion_data/config), hence the "../motion_tracking/..." prefix.
+motion_data:
+  robot_name: g1_23dof
+  root_link_name: pelvis
+  root_quat_order: xyzw
+
+  # Default single-file input used by csv_to_npz.py when --csv_path is omitted.
+  csv_path: ../motion_tracking/g1_23dof/dance1_subject2.csv
+  csv_fps: 30
+
+  # Optional multi-file list used by batch_csv_to_npz.py.
+  csv_paths:
+    - ../motion_tracking/g1_23dof/dance1_subject2.csv
+
+  # Joint order used by the CSV columns (23 DoF).
+  csv_joint_names:
+    - left_hip_pitch_joint
+    - left_hip_roll_joint
+    - left_hip_yaw_joint
+    - left_knee_joint
+    - left_ankle_pitch_joint
+    - left_ankle_roll_joint
+    - right_hip_pitch_joint
+    - right_hip_roll_joint
+    - right_hip_yaw_joint
+    - right_knee_joint
+    - right_ankle_pitch_joint
+    - right_ankle_roll_joint
+    - waist_yaw_joint
+    - left_shoulder_pitch_joint
+    - left_shoulder_roll_joint
+    - left_shoulder_yaw_joint
+    - left_elbow_joint
+    - left_wrist_roll_joint
+    - right_shoulder_pitch_joint
+    - right_shoulder_roll_joint
+    - right_shoulder_yaw_joint
+    - right_elbow_joint
+    - right_wrist_roll_joint

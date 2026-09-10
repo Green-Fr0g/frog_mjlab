@@ -61,14 +61,14 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
 
   print(f"[INFO] Training with: device={device}, seed={seed}, rank={rank}")
 
-  # Check if this is a tracking task by checking for motion command.
-  is_tracking_task = "motion" in cfg.env.commands and isinstance(
+  # Check if this is a mimic task by checking for motion command.
+  is_mimic_task = "motion" in cfg.env.commands and isinstance(
     cfg.env.commands["motion"], MotionCommandCfg
   )
 
-  if is_tracking_task:
+  if is_mimic_task:
     if not cfg.motion_file:
-      raise ValueError("For tracking tasks, --motion-file must be set ...")
+      raise ValueError("For mimic tasks, --motion-file must be set ...")
     motion_path = Path(cfg.motion_file).expanduser().resolve()
     if not motion_path.exists():
       raise FileNotFoundError(f"Motion file not found: {motion_path}")

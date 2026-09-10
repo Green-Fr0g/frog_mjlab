@@ -222,7 +222,8 @@ def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "motion_dir": "",  # Set per-robot.
         "root_name": "",  # Set per-robot.
-        "all_body_names": (),  # Set per-robot.
+        "all_body_names": (),  # Set per-robot (optional; robot entity is the source of truth).
+        "joint_names": (),  # Set per-robot (optional; robot entity is the source of truth).
       },
     ),
     "reset_from_motion": EventTermCfg(
@@ -231,7 +232,8 @@ def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "motion_dir": "",  # Set per-robot (must match init_motion_loader).
         "root_name": "",  # Set per-robot.
-        "all_body_names": (),  # Set per-robot.
+        "all_body_names": (),  # Set per-robot (optional; robot entity is the source of truth).
+        "joint_names": (),  # Set per-robot (optional; robot entity is the source of truth).
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
       },
     ),

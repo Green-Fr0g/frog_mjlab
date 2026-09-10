@@ -34,7 +34,7 @@ import frog_mjlab.tasks.locomotion.mdp as mdp
 
 
 def make_locomotion_env_cfg() -> ManagerBasedRlEnvCfg:
-  """Create base velocity tracking task configuration."""
+  """Create base velocity mimic task configuration."""
 
   ##
   # Sensors

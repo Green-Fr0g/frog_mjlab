@@ -133,7 +133,7 @@ def g1_amp_ppo_runner_cfg() -> RslRlAmpRunnerCfg:
         },
       },
     ),
-    experiment_name="g1_amp_locomotion",
+    experiment_name="g1_amp_flat",
     logger="tensorboard",
     save_interval=100,
     num_steps_per_env=24,

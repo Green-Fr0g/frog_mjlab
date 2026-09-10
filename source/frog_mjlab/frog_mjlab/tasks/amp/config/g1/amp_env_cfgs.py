@@ -169,9 +169,11 @@ def _g1_amp_base_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.events["init_motion_loader"].params["motion_dir"] = _motion_dir
   cfg.events["init_motion_loader"].params["root_name"] = root_name
   cfg.events["init_motion_loader"].params["all_body_names"] = all_body_names
+  cfg.events["init_motion_loader"].params["joint_names"] = joint_names
   cfg.events["reset_from_motion"].params["motion_dir"] = _motion_dir
   cfg.events["reset_from_motion"].params["root_name"] = root_name
   cfg.events["reset_from_motion"].params["all_body_names"] = all_body_names
+  cfg.events["reset_from_motion"].params["joint_names"] = joint_names
   cfg.events["reset_from_motion"].params["asset_cfg"].joint_names = joint_names
 
   cfg.rewards["track_anchor_linear_velocity"].params["anchor_cfg"].body_names = (anchor_name,)

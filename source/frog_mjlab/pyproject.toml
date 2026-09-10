@@ -13,7 +13,7 @@ packages = [
     "frog_mjlab.tasks.locomotion.mdp",
     "frog_mjlab.tasks.locomotion.rl",
     "frog_mjlab.tasks.locomotion.config",
-    "frog_mjlab.tasks.locomotion.config.g1_29",
+    "frog_mjlab.tasks.locomotion.config.g1",
     "frog_mjlab.tasks.locomotion.config.h2",
     "frog_mjlab.tasks.amp",
     "frog_mjlab.tasks.amp.config",
@@ -21,12 +21,12 @@ packages = [
     "frog_mjlab.tasks.amp.mdp",
     "frog_mjlab.tasks.amp.rl",
     "frog_mjlab.tasks.amp.utils",
-    "frog_mjlab.tasks.tracking",
-    "frog_mjlab.tasks.tracking.mdp",
-    "frog_mjlab.tasks.tracking.rl",
-    "frog_mjlab.tasks.tracking.config",
-    "frog_mjlab.tasks.tracking.config.g1",
-    "frog_mjlab.tasks.tracking.config.g1_23dof",
+    "frog_mjlab.tasks.mimic",
+    "frog_mjlab.tasks.mimic.mdp",
+    "frog_mjlab.tasks.mimic.rl",
+    "frog_mjlab.tasks.mimic.config",
+    "frog_mjlab.tasks.mimic.config.g1",
+    "frog_mjlab.tasks.mimic.config.g1_23dof",
 ]
 
 [tool.setuptools.package-data]
@@ -34,5 +34,5 @@ packages = [
     "motions/Recovery/*.npz",
     "motions/WalkandRun/*.npz",
 ]
-"frog_mjlab.tasks.tracking.config.g1" = ["motions/*.npz"]
-"frog_mjlab.tasks.tracking.config.g1_23dof" = ["motions/*.npz"]
+"frog_mjlab.tasks.mimic.config.g1" = ["motions/*.npz"]
+"frog_mjlab.tasks.mimic.config.g1_23dof" = ["motions/*.npz"]

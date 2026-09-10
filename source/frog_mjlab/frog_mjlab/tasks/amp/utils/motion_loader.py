@@ -11,6 +11,20 @@ from mjlab.utils.lab_api.math import (
 )
 
 
+def _as_str_list(values) -> list[str]:
+    """Convert npz name arrays to a list of strings."""
+    return [str(name) for name in np.asarray(values).tolist()]
+
+
+def _index_by_names(available: Sequence[str], requested: Sequence[str], kind: str) -> list[int]:
+    """Map requested names onto a motion-file name list."""
+    lookup = {name: index for index, name in enumerate(available)}
+    missing = [name for name in requested if name not in lookup]
+    if missing:
+        raise ValueError(f"AMP motion {kind} names {missing} were not found. Available {kind} names: {list(available)}")
+    return [lookup[name] for name in requested]
+
+
 class AMPBodyStateMotionLoader:
     """Loads AMP expert states from G1 body-state ``.npz`` motion files."""
 
@@ -78,6 +92,31 @@ class AMPBodyStateMotionLoader:
         body_quat_w = torch.as_tensor(data["body_quat_w"], dtype=torch.float32, device=self.device)
         body_lin_vel_w = torch.as_tensor(data["body_lin_vel_w"], dtype=torch.float32, device=self.device)
         body_ang_vel_w = torch.as_tensor(data["body_ang_vel_w"], dtype=torch.float32, device=self.device)
+
+        # The motion file must carry its own layout; the data is re-ordered by
+        # name onto the requested body layout (no positional assumptions).
+        if "body_names" not in data:
+            raise KeyError(
+                f"AMP motion file '{motion_file}' is missing 'body_names'. "
+                "Re-export the motion with scripts/mimic/csv_to_npz.py."
+            )
+        if "joint_names" not in data:
+            raise KeyError(
+                f"AMP motion file '{motion_file}' is missing 'joint_names'. "
+                "Re-export the motion with scripts/mimic/csv_to_npz.py."
+            )
+
+        motion_body_names = _as_str_list(data["body_names"])
+        if len(motion_body_names) != body_pos_w.shape[1]:
+            raise ValueError(
+                f"AMP motion file '{motion_file}' has {len(motion_body_names)} body_names "
+                f"but body_pos_w has {body_pos_w.shape[1]} bodies."
+            )
+        body_indexes = _index_by_names(motion_body_names, self.all_body_names, "body")
+        body_pos_w = body_pos_w[:, body_indexes]
+        body_quat_w = body_quat_w[:, body_indexes]
+        body_lin_vel_w = body_lin_vel_w[:, body_indexes]
+        body_ang_vel_w = body_ang_vel_w[:, body_indexes]
 
         anchor_pos_w = body_pos_w[:, self._anchor_index]
         anchor_quat_w = body_quat_w[:, self._anchor_index]
