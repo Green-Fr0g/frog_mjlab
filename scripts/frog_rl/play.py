@@ -15,10 +15,14 @@ from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
 from mjlab.tasks.registry import list_tasks, load_env_cfg, load_rl_cfg, load_runner_cls
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
+from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.utils.os import get_wandb_checkpoint_path
 from mjlab.utils.torch import configure_torch_backends
 from mjlab.utils.wrappers import VideoRecorder
-from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
+from mjlab.viewer import ViewerConfig, ViserPlayViewer
+
+from camera_follow import CameraFollower, FollowCameraViewer
+from teleop import MUJOCO_KEY_TO_INPUT, MujocoKeyBackend, TeleopVelocityCommandCfg
 
 
 @dataclass(frozen=True)
@@ -37,9 +41,27 @@ class PlayConfig:
   camera: int | str | None = None
   viewer: Literal["auto", "native", "viser"] = "auto"
   no_terminations: bool = False
+  """Disable all termination conditions (useful for viewing motions with dummy agents)."""
   export_onnx: bool = True
   """Export loaded trained policy to ONNX under current run directory/export."""
-  """Disable all termination conditions (useful for viewing motions with dummy agents)."""
+
+  # Interactive teleop (play only).
+  keyboard: bool = False
+  """Drive the ``twist`` velocity command with the keyboard."""
+  joy: bool = False
+  """Drive the ``twist`` velocity command with a gamepad."""
+  teleop_hold: float = 0.5
+  """Seconds a key press keeps its velocity (see ``teleop.MujocoKeyBackend``)."""
+
+  # Camera follow (native viewer only).
+  camera_follow: bool = True
+  """Turn the viewer camera with the robot's heading."""
+  cam_distance: float | None = None
+  """Override the viewer camera distance (default: from the task config)."""
+  cam_elevation: float | None = None
+  """Override the viewer camera elevation in degrees."""
+  cam_azimuth: float | None = None
+  """Override the viewer camera base azimuth in degrees."""
 
   # Internal flag used by demo script.
   _demo_mode: tyro.conf.Suppress[bool] = False
@@ -210,6 +232,86 @@ def run_play(task_id: str, cfg: PlayConfig):
   if cfg.video_width is not None:
     env_cfg.viewer.width = cfg.video_width
 
+  # Teleop and camera follow (play only).
+  if cfg.keyboard and cfg.joy:
+    raise ValueError("`--keyboard` and `--joy` are mutually exclusive.")
+  teleop_enabled = cfg.keyboard or cfg.joy
+
+  # The keyboard is read from the MuJoCo window itself via its key callback, so
+  # no second (pygame) window is opened. The gamepad needs no window either.
+  input_backend: MujocoKeyBackend | None = None
+  key_callback = None
+  if cfg.keyboard:
+    input_backend = MujocoKeyBackend(hold_timeout=cfg.teleop_hold)
+
+    def key_callback(key: int) -> None:
+      name = MUJOCO_KEY_TO_INPUT.get(key)
+      if name is not None:
+        assert input_backend is not None
+        input_backend.push(name)
+
+  if teleop_enabled:
+    twist_cfg = env_cfg.commands.get("twist")
+    if not isinstance(twist_cfg, UniformVelocityCommandCfg):
+      raise ValueError(
+        "Teleop requires a velocity task with a 'twist' command; "
+        f"task '{task_id}' exposes commands {sorted(env_cfg.commands)}."
+      )
+    if cfg.num_envs not in (None, 1):
+      print(f"[WARN]: Teleop forces num_envs=1 (ignoring --num-envs {cfg.num_envs})")
+    # Single robot and no episode time-out, matching frog_lab's play.py. Falls
+    # over still resets, which is useful feedback while driving.
+    env_cfg.scene.num_envs = 1
+    env_cfg.terminations.pop("time_out", None)
+    # The operator is the command; nothing should drift it in the background.
+    env_cfg.curriculum = {}
+    # Copy the task's command config verbatim, then swap in the teleop term.
+    # heading_command is preserved so the inherited validation still passes; the
+    # term never runs its heading branch because _update_command is overridden.
+    env_cfg.commands["twist"] = TeleopVelocityCommandCfg(
+      entity_name=twist_cfg.entity_name,
+      resampling_time_range=twist_cfg.resampling_time_range,
+      debug_vis=False,
+      heading_command=twist_cfg.heading_command,
+      heading_control_stiffness=twist_cfg.heading_control_stiffness,
+      rel_standing_envs=twist_cfg.rel_standing_envs,
+      rel_heading_envs=twist_cfg.rel_heading_envs,
+      rel_world_envs=twist_cfg.rel_world_envs,
+      rel_forward_envs=twist_cfg.rel_forward_envs,
+      init_velocity_prob=twist_cfg.init_velocity_prob,
+      ranges=twist_cfg.ranges,
+      viz=twist_cfg.viz,
+      device_type="keyboard" if cfg.keyboard else "gamepad",
+      sim_device=str(device),
+      input_backend=input_backend,
+    )
+    if cfg.keyboard:
+      print(
+        "[INFO]: Keyboard teleop (MuJoCo window)\n"
+        "\tMove forward   / backward : Up / Down  (or Numpad 8 / 2)\n"
+        "\tMove left      / right    : Left / Right (or Numpad 4 / 6)\n"
+        "\tYaw left       / right    : Z / X      (or Numpad 7 / 9)\n"
+        "\tStop all commands         : L\n"
+        f"\tOne press holds for {cfg.teleop_hold:.2f}s; raise --teleop-hold for a latch."
+      )
+    else:
+      print("[INFO]: Gamepad teleop: left stick = x/y velocity, right stick = yaw")
+
+  # Camera follow.
+  if cfg.cam_distance is not None:
+    env_cfg.viewer.distance = cfg.cam_distance
+  if cfg.cam_elevation is not None:
+    env_cfg.viewer.elevation = cfg.cam_elevation
+  if cfg.cam_azimuth is not None:
+    env_cfg.viewer.azimuth = cfg.cam_azimuth
+
+  follower: CameraFollower | None = None
+  if cfg.camera_follow:
+    follower = CameraFollower(base_azimuth=env_cfg.viewer.azimuth)
+  else:
+    # Fixed world-frame camera instead of a body-tracking one.
+    env_cfg.viewer.origin_type = ViewerConfig.OriginType.WORLD
+
   render_mode = "rgb_array" if (TRAINED_MODE and cfg.video) else None
   if cfg.video and DUMMY_MODE:
     print(
@@ -273,17 +375,35 @@ def run_play(task_id: str, cfg: PlayConfig):
     has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
     resolved_viewer = "native" if has_display else "viser"
     del has_display
+    if cfg.keyboard:
+      # The MuJoCo key callback only exists in the native viewer.
+      resolved_viewer = "native"
   else:
     resolved_viewer = cfg.viewer
 
-  if resolved_viewer == "native":
-    NativeMujocoViewer(env, policy).run()
-  elif resolved_viewer == "viser":
-    ViserPlayViewer(env, policy).run()
-  else:
-    raise RuntimeError(f"Unsupported viewer backend: {resolved_viewer}")
+  if cfg.keyboard and resolved_viewer != "native":
+    print(
+      "[WARN]: Keyboard teleop needs the native viewer "
+      "(Viser has no MuJoCo key callback); use --viewer native."
+    )
 
-  env.close()
+  try:
+    if resolved_viewer == "native":
+      FollowCameraViewer(
+        env, policy, follower=follower, key_callback=key_callback
+      ).run()
+    elif resolved_viewer == "viser":
+      ViserPlayViewer(env, policy).run()
+    else:
+      raise RuntimeError(f"Unsupported viewer backend: {resolved_viewer}")
+  finally:
+    # Release the teleop device (closes pygame, if one was opened).
+    if teleop_enabled:
+      term = env.unwrapped.command_manager.get_term("twist")
+      close_fn = getattr(term, "close", None)
+      if close_fn is not None:
+        close_fn()
+    env.close()
 
 
 def main():
