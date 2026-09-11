@@ -7,10 +7,10 @@ from mjlab.rl.exporter_utils import (
   attach_metadata_to_onnx,
   get_base_metadata,
 )
-from mjlab.rl.runner import MjlabOnPolicyRunner
+from frog_mjlab.tasks.amp.utils.runner import FrogMjlabOnPolicyRunner
 
 
-class LocomotionOnPolicyRunner(MjlabOnPolicyRunner):
+class LocomotionOnPolicyRunner(FrogMjlabOnPolicyRunner):
   env: RslRlVecEnvWrapper
 
   def save(self, path: str, infos=None):

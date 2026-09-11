@@ -3,7 +3,7 @@ from typing import cast
 
 import torch
 import wandb
-from rsl_rl.env.vec_env import VecEnv
+from frog_rl.env import VecEnv
 from torch import nn
 
 from mjlab.rl import RslRlVecEnvWrapper
@@ -11,7 +11,7 @@ from mjlab.rl.exporter_utils import (
   attach_metadata_to_onnx,
   get_base_metadata,
 )
-from mjlab.rl.runner import MjlabOnPolicyRunner
+from frog_mjlab.tasks.amp.utils.runner import FrogMjlabOnPolicyRunner
 from mjlab.tasks.tracking.mdp import MotionCommand
 
 
@@ -44,7 +44,7 @@ class _OnnxMotionModel(nn.Module):
     )
 
 
-class MotionMimicOnPolicyRunner(MjlabOnPolicyRunner):
+class MotionMimicOnPolicyRunner(FrogMjlabOnPolicyRunner):
   env: RslRlVecEnvWrapper
 
   def __init__(

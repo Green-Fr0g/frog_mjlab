@@ -121,7 +121,7 @@ def g1_amp_ppo_runner_cfg() -> RslRlAmpRunnerCfg:
         "amp_trunk_weight_decay": 1.0e-3,
         "amp_head_weight_decay": 1.0e-2,
         "amp_task_reward_lerp": 0.75,
-        "expert_state_key": "amp",
+        "amp_state_key": "amp",
         "motion_loader_class_name": (
           "frog_mjlab.tasks.amp.utils.motion_loader:AMPBodyStateMotionLoader"
         ),
