@@ -21,8 +21,8 @@ from mjlab.utils.torch import configure_torch_backends
 from mjlab.utils.wrappers import VideoRecorder
 from mjlab.viewer import ViewerConfig, ViserPlayViewer
 
-from camera_follow import CameraFollower, FollowCameraViewer
-from teleop import MUJOCO_KEY_TO_INPUT, MujocoKeyBackend, TeleopVelocityCommandCfg
+from utils.camera_follow import CameraFollower, FollowCameraViewer
+from utils.device import Se2Gamepad, Se2GamepadCfg, Se2Keyboard, Se2KeyboardCfg
 
 
 @dataclass(frozen=True)
@@ -53,7 +53,7 @@ class PlayConfig:
   joy: bool = False
   """Drive the ``twist`` velocity command with a gamepad."""
   teleop_hold: float = 0.5
-  """Seconds a key press keeps its velocity (see ``teleop.MujocoKeyBackend``)."""
+  """Seconds a MuJoCo key press keeps its velocity (keyboard teleop)."""
 
   # Camera follow (native viewer only).
   camera_follow: bool = True
@@ -252,20 +252,9 @@ def run_play(task_id: str, cfg: PlayConfig):
   if cfg.keyboard and cfg.joy:
     raise ValueError("`--keyboard` and `--joy` are mutually exclusive.")
   teleop_enabled = cfg.keyboard or cfg.joy
+  controller: Se2Keyboard | Se2Gamepad | None = None
 
-  # The keyboard is read from the MuJoCo window itself via its key callback, so
-  # no second (pygame) window is opened. The gamepad needs no window either.
-  input_backend: MujocoKeyBackend | None = None
-  key_callback = None
-  if cfg.keyboard:
-    input_backend = MujocoKeyBackend(hold_timeout=cfg.teleop_hold)
-
-    def key_callback(key: int) -> None:
-      name = MUJOCO_KEY_TO_INPUT.get(key)
-      if name is not None:
-        assert input_backend is not None
-        input_backend.push(name)
-
+  # Keyboard: MuJoCo native viewer key callback. Gamepad: windowless pygame.
   if teleop_enabled:
     twist_cfg = env_cfg.commands.get("twist")
     if not isinstance(twist_cfg, UniformVelocityCommandCfg):
@@ -281,27 +270,18 @@ def run_play(task_id: str, cfg: PlayConfig):
     env_cfg.terminations.pop("time_out", None)
     # The operator is the command; nothing should drift it in the background.
     env_cfg.curriculum = {}
-    # Copy the task's command config verbatim, then swap in the teleop term.
-    # heading_command is preserved so the inherited validation still passes; the
-    # term never runs its heading branch because _update_command is overridden.
-    env_cfg.commands["twist"] = TeleopVelocityCommandCfg(
-      entity_name=twist_cfg.entity_name,
-      resampling_time_range=twist_cfg.resampling_time_range,
-      debug_vis=False,
-      heading_command=twist_cfg.heading_command,
-      heading_control_stiffness=twist_cfg.heading_control_stiffness,
-      rel_standing_envs=twist_cfg.rel_standing_envs,
-      rel_heading_envs=twist_cfg.rel_heading_envs,
-      rel_world_envs=twist_cfg.rel_world_envs,
-      rel_forward_envs=twist_cfg.rel_forward_envs,
-      init_velocity_prob=twist_cfg.init_velocity_prob,
-      ranges=twist_cfg.ranges,
-      viz=twist_cfg.viz,
-      device_type="keyboard" if cfg.keyboard else "gamepad",
-      sim_device=str(device),
-      input_backend=input_backend,
-    )
+    twist_cfg.debug_vis = False
+
+    sensitivities = {
+      "v_x_sensitivity": twist_cfg.ranges.lin_vel_x[1],
+      "v_y_sensitivity": twist_cfg.ranges.lin_vel_y[1],
+      "omega_z_sensitivity": twist_cfg.ranges.ang_vel_z[1],
+      "sim_device": str(device),
+    }
     if cfg.keyboard:
+      controller = Se2Keyboard(
+        Se2KeyboardCfg(**sensitivities, hold_timeout=cfg.teleop_hold)
+      )
       print(
         "[INFO]: Keyboard teleop (MuJoCo window)\n"
         "\tMove forward   / backward : Up / Down  (or Numpad 8 / 2)\n"
@@ -311,7 +291,9 @@ def run_play(task_id: str, cfg: PlayConfig):
         f"\tOne press holds for {cfg.teleop_hold:.2f}s; raise --teleop-hold for a latch."
       )
     else:
+      controller = Se2Gamepad(Se2GamepadCfg(**sensitivities))
       print("[INFO]: Gamepad teleop: left stick = x/y velocity, right stick = yaw")
+    print(f"[INFO] {controller}")
 
   # Camera follow.
   if cfg.cam_distance is not None:
@@ -334,6 +316,22 @@ def run_play(task_id: str, cfg: PlayConfig):
       "[WARN] Video recording with dummy agents is disabled (no checkpoint/log_dir)."
     )
   env = ManagerBasedRlEnv(cfg=env_cfg, device=device, render_mode=render_mode)
+
+  # Drive the existing twist command from the SE(2) controller so command /
+  # phase / other readers of get_command("twist") stay consistent.
+  if controller is not None:
+    twist = env.unwrapped.command_manager.get_term("twist")
+    twist._resample_command = lambda env_ids: None  # noqa: ARG005
+
+    def _update_command_from_controller(
+      env_ids: torch.Tensor | None = None,
+    ) -> None:
+      del env_ids
+      twist.vel_command_b[:] = (
+        controller.advance().to(twist.device).unsqueeze(0)
+      )
+
+    twist._update_command = _update_command_from_controller
 
   if TRAINED_MODE and cfg.video:
     print("[INFO] Recording videos during play")
@@ -408,11 +406,16 @@ def run_play(task_id: str, cfg: PlayConfig):
   else:
     resolved_viewer = cfg.viewer
 
-  if cfg.keyboard and resolved_viewer != "native":
-    print(
-      "[WARN]: Keyboard teleop needs the native viewer "
-      "(Viser has no MuJoCo key callback); use --viewer native."
-    )
+  # Keyboard teleop: attach Se2Keyboard.on_key to the native viewer callback.
+  key_callback = None
+  if cfg.keyboard:
+    if resolved_viewer != "native":
+      print(
+        "[WARN]: Keyboard teleop needs the native viewer "
+        "(Viser has no MuJoCo key callback); use --viewer native."
+      )
+    elif isinstance(controller, Se2Keyboard):
+      key_callback = controller.on_key
 
   try:
     if resolved_viewer == "native":
@@ -424,12 +427,8 @@ def run_play(task_id: str, cfg: PlayConfig):
     else:
       raise RuntimeError(f"Unsupported viewer backend: {resolved_viewer}")
   finally:
-    # Release the teleop device (closes pygame, if one was opened).
-    if teleop_enabled:
-      term = env.unwrapped.command_manager.get_term("twist")
-      close_fn = getattr(term, "close", None)
-      if close_fn is not None:
-        close_fn()
+    if controller is not None:
+      controller.close()
     env.close()
 
 

@@ -19,7 +19,7 @@ from mjlab.utils.os import dump_yaml, get_checkpoint_path
 from mjlab.utils.torch import configure_torch_backends
 from mjlab.utils.wrappers import VideoRecorder
 
-from frog_mjlab.utils.export_deploy_cfg import export_deploy_cfg
+from utils.export_deploy_cfg import export_deploy_cfg
 
 
 @dataclass(frozen=True)
