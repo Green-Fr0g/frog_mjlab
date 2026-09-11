@@ -10,7 +10,7 @@
 
 - 基于 `mjlab.rl` 的 PPO / AMP 训练（`LocomotionOnPolicyRunner` / `MotionMimicOnPolicyRunner` / `AMPOnPolicyRunner`）
 - 算法包 `frog_rl`（源自 AMP_mjlab 的 vendored RSL-RL，含 `AMPPPO` / `AmpOnPolicyRunner`）
-- 训练与回放管线一致，训练/回放时自动导出 ONNX 策略
+- 训练与回放管线一致，训练/回放时自动导出 ONNX + TorchScript 策略
 - 支持粗糙地形（Rough）与平地（Flat）两种配置
 
 ## 环境要求
@@ -141,7 +141,12 @@ python scripts/frog_rl/play.py FrogMjlab-G1-Rough \
   --checkpoint-file logs/rsl_rl/g1_locomotion/<run_dir>/model_<iter>.pt
 ```
 
-回放默认启用 ONNX 导出，生成 `policy.onnx`。
+回放默认导出两种部署格式（`--export-onnx` / `--export-jit` 可分别关闭），生成：
+
+- `logs/rsl_rl/<exp>/<run>/export/<task_id>_<ckpt>.onnx` — ONNX 部署图
+- `logs/rsl_rl/<exp>/<run>/export/<task_id>_<ckpt>.pt` — TorchScript 部署图
+
+训练时每个 checkpoint 也会同步产出 `policy.pt` + `policy.onnx`（`save_interval` 节奏，随 run 目录保存）。
 
 ## 仓库结构
 

@@ -18,6 +18,7 @@ class LocomotionOnPolicyRunner(FrogMjlabOnPolicyRunner):
     policy_path = path.split("model")[0]
     filename = "policy.onnx"
     self.export_policy_to_onnx(policy_path, filename)
+    self.export_policy_to_jit(policy_path, "policy.pt")
     run_name: str = (
       wandb.run.name if self.logger.logger_type == "wandb" and wandb.run else "local"
     )  # type: ignore[assignment]

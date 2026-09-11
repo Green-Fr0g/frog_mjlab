@@ -18,6 +18,7 @@ class AMPOnPolicyRunner(FrogMjlabOnPolicyRunner):
     policy_path = path.split("model")[0]
     filename = "policy.onnx"
     self.export_policy_to_onnx(policy_path, filename)
+    self.export_policy_to_jit(policy_path, "policy.pt")
     logger_type = self.logger.logger_type
     run_name: str = (
       wandb.run.name if logger_type in ("wandb", "WandbLogWriter") and wandb.run else "local"

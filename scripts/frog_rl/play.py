@@ -44,6 +44,8 @@ class PlayConfig:
   """Disable all termination conditions (useful for viewing motions with dummy agents)."""
   export_onnx: bool = True
   """Export loaded trained policy to ONNX under current run directory/export."""
+  export_jit: bool = True
+  """Export loaded trained policy to TorchScript (.pt) under current run directory/export."""
 
   # Interactive teleop (play only).
   keyboard: bool = False
@@ -157,6 +159,20 @@ def run_play(task_id: str, cfg: PlayConfig):
       policy.to(runner_device)
       if obs_normalizer is not None:
         obs_normalizer.to(runner_device)
+
+  def export_runner_policy_to_jit(runner: Any, output_path: Path):
+    """Export the runner's policy to TorchScript (.pt).
+
+    Prefers the runner's own exporter (provided by frog_rl's ``OnPolicyRunner``);
+    raises for runners without it (e.g. mjlab's built-in rsl_rl runner).
+    """
+    if not hasattr(runner, "export_policy_to_jit"):
+      raise AttributeError(
+        f"{type(runner).__name__} does not implement export_policy_to_jit(); "
+        "TorchScript export requires a frog_rl-backed runner."
+      )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    runner.export_policy_to_jit(str(output_path.parent), output_path.name)
 
   configure_torch_backends()
 
@@ -367,8 +383,19 @@ def run_play(task_id: str, cfg: PlayConfig):
         print(f"[INFO]: Exported ONNX policy to: {onnx_path}")
       except Exception as exc:
         print(f"[WARN]: Failed to export ONNX policy: {exc}")
-  if DUMMY_MODE and cfg.export_onnx:
-    print("[WARN]: ONNX export is only available for trained agents.")
+
+    if cfg.export_jit:
+      safe_task_name = task_id.replace("/", "_").replace(":", "_")
+      checkpoint_stem = resume_path.stem if resume_path is not None else "policy"
+      export_root = log_dir if log_dir is not None else Path("logs")
+      jit_path = (export_root / "export" / f"{safe_task_name}_{checkpoint_stem}.pt").resolve()
+      try:
+        export_runner_policy_to_jit(runner, jit_path)
+        print(f"[INFO]: Exported TorchScript policy to: {jit_path}")
+      except Exception as exc:
+        print(f"[WARN]: Failed to export TorchScript policy: {exc}")
+  if DUMMY_MODE and (cfg.export_onnx or cfg.export_jit):
+    print("[WARN]: Policy export (.pt/.onnx) is only available for trained agents.")
 
   # Handle "auto" viewer selection.
   if cfg.viewer == "auto":
