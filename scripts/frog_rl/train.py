@@ -19,6 +19,8 @@ from mjlab.utils.os import dump_yaml, get_checkpoint_path
 from mjlab.utils.torch import configure_torch_backends
 from mjlab.utils.wrappers import VideoRecorder
 
+from frog_mjlab.utils.export_deploy_cfg import export_deploy_cfg
+
 
 @dataclass(frozen=True)
 class TrainConfig:
@@ -134,6 +136,8 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
   if rank == 0:
     dump_yaml(log_dir / "params" / "env.yaml", env_cfg)
     dump_yaml(log_dir / "params" / "agent.yaml", agent_cfg)
+    deploy_cfg_path = export_deploy_cfg(env.unwrapped, log_dir)
+    print(f"[INFO] Deploy config exported to: {deploy_cfg_path}")
 
   runner.learn(
     num_learning_iterations=cfg.agent.max_iterations, init_at_random_ep_len=True

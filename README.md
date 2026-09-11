@@ -148,6 +148,20 @@ python scripts/frog_rl/play.py FrogMjlab-G1-Rough \
 
 训练时每个 checkpoint 也会同步产出 `policy.pt` + `policy.onnx`（`save_interval` 节奏，随 run 目录保存）。
 
+### 部署参数导出（deploy.yaml）
+
+训练启动时（rank 0），`scripts/frog_rl/train.py` 会自动调用
+`frog_mjlab/utils/export_deploy_cfg.py`，在本次 run 的 `params/deploy.yaml`
+中导出真机部署所需的全部环境侧参数，与 `policy.onnx` 配套构成完整部署包：
+
+- `joint_ids_map`：实际使用的关节名列表（即策略动作序，无 SDK 重映射）
+- `step_dt`：控制周期（物理步长 × decimation）
+- `stiffness` / `damping` / `default_joint_pos` / `encoder_bias`：按关节序导出的执行器增益与默认状态
+- `commands`：速度指令范围（mimic 等无速度指令的任务自动跳过）
+- `actions` / `observations`：逐 term 的 scale、clip、offset、joint_ids、history_length、delay 参数
+
+只导出 `actor` 观测组（策略输入）；critic/特权观测不导出。
+
 ## 仓库结构
 
 ```
