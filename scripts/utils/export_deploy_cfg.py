@@ -102,7 +102,8 @@ def export_deploy_cfg(env, log_dir, obs_group: str = "actor") -> str:
   cfg["joint_ids_map"] = joint_names
 
   # --- control rate ---
-  cfg["step_dt"] = float(env.step_dt)
+  cfg["sim_dt"] = float(env.physics_dt)
+  cfg["decimation"] = int(env.cfg.decimation)
 
   # --- actuator gains and default joint state (in joint_ids_map order) ---
   stiffness = [0.0] * len(joint_names)
@@ -123,7 +124,6 @@ def export_deploy_cfg(env, log_dir, obs_group: str = "actor") -> str:
   cfg["stiffness"] = stiffness
   cfg["damping"] = damping
   cfg["default_joint_pos"] = _tensor_to_list(asset.data.default_joint_pos[0])
-  cfg["encoder_bias"] = _tensor_to_list(asset.data.encoder_bias[0])
 
   # --- commands ---
   cfg["commands"] = {}
@@ -174,17 +174,7 @@ def export_deploy_cfg(env, log_dir, obs_group: str = "actor") -> str:
   for term_name, term_cfg, term_dim in zip(term_names, term_cfgs, term_dims):
     obs_dim = term_dim[-1] if isinstance(term_dim, tuple) and len(term_dim) > 0 else None
     entry = {}
-    for field_name in (
-      "clip",
-      "history_length",
-      "delay_min_lag",
-      "delay_max_lag",
-      "delay_per_env",
-      "delay_hold_prob",
-      "delay_update_period",
-      "delay_per_env_phase",
-      "flatten_history_dim",
-    ):
+    for field_name in ("clip", "history_length"):
       entry[field_name] = _to_yaml(getattr(term_cfg, field_name, None))
     scale = _to_yaml(getattr(term_cfg, "scale", None))
     if scale is None:
