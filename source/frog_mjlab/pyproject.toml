@@ -1,33 +1,22 @@
 [build-system]
-requires = ["setuptools<82.0.0", "wheel", "toml"]
+requires = ["setuptools>=61.0,<82.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = [
-    "frog_mjlab",
-    "frog_mjlab.assets",
-    "frog_mjlab.assets.g1",
-    "frog_mjlab.assets.h2",
-    "frog_mjlab.tasks",
-    "frog_mjlab.tasks.locomotion",
-    "frog_mjlab.tasks.locomotion.mdp",
-    "frog_mjlab.tasks.locomotion.rl",
-    "frog_mjlab.tasks.locomotion.config",
-    "frog_mjlab.tasks.locomotion.config.g1",
-    "frog_mjlab.tasks.locomotion.config.h2",
-    "frog_mjlab.tasks.amp",
-    "frog_mjlab.tasks.amp.config",
-    "frog_mjlab.tasks.amp.config.g1",
-    "frog_mjlab.tasks.amp.mdp",
-    "frog_mjlab.tasks.amp.rl",
-    "frog_mjlab.tasks.amp.utils",
-    "frog_mjlab.tasks.mimic",
-    "frog_mjlab.tasks.mimic.mdp",
-    "frog_mjlab.tasks.mimic.rl",
-    "frog_mjlab.tasks.mimic.config",
-    "frog_mjlab.tasks.mimic.config.g1",
-    "frog_mjlab.tasks.mimic.config.g1_23dof",
+[project]
+name = "frog-mjlab"
+version = "0.1.0"
+description = "G1/H2 locomotion and motion-mimic training tasks built as external extensions of mjlab."
+requires-python = ">=3.13"
+dependencies = [
+    "mjlab",
+    "mujoco-warp",
+    "warp-lang",
+    "scipy",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["frog_mjlab*"]
 
 [tool.setuptools.package-data]
 "frog_mjlab.tasks.amp.config.g1" = [
