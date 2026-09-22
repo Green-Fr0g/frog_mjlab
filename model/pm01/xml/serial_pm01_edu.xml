@@ -154,7 +154,6 @@
         </body>
     </worldbody>
 
-    <include file="serial_actuators.xml"/>
     <include file="serial_sensors.xml"/>
 
     <!-- Comments this keyframe when fixed base used -->

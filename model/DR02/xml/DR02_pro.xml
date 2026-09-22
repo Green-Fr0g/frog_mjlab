@@ -1,5 +1,5 @@
 <mujoco model="DR02_pro">
-  <compiler angle="radian" meshdir="meshes/" />
+  <compiler angle="radian" meshdir="../meshes/" />
   <asset>
     <mesh name="base_link" file="base_link.STL" />
     <mesh name="waist_z_link" file="waist_z_link.STL" />
@@ -289,37 +289,4 @@
       </body>
     </body>
   </worldbody>
-  <actuator>
-    <motor name="waist_z_joint_motor" joint="waist_z_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="waist_x_joint_motor" joint="waist_x_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="waist_y_joint_motor" joint="waist_y_joint" gear="1" ctrllimited="true" ctrlrange="-363 363" />
-    <motor name="left_shoulder_y_joint_motor" joint="left_shoulder_y_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="left_shoulder_x_joint_motor" joint="left_shoulder_x_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="left_shoulder_z_joint_motor" joint="left_shoulder_z_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="left_elbow_joint_motor" joint="left_elbow_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="left_wrist_z_joint_motor" joint="left_wrist_z_joint" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-    <motor name="left_wrist_y_joint_motor" joint="left_wrist_y_joint" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-    <motor name="left_wrist_x_joint_motor" joint="left_wrist_x_joint" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-    <motor name="right_shoulder_y_joint_motor" joint="right_shoulder_y_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="right_shoulder_x_joint_motor" joint="right_shoulder_x_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="right_shoulder_z_joint_motor" joint="right_shoulder_z_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="right_elbow_joint_motor" joint="right_elbow_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="right_wrist_z_joint_motor" joint="right_wrist_z_joint" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-    <motor name="right_wrist_y_joint_motor" joint="right_wrist_y_joint" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-    <motor name="right_wrist_x_joint_motor" joint="right_wrist_x_joint" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-    <motor name="neck_z_joint_motor" joint="neck_z_joint" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-    <motor name="neck_y_joint_motor" joint="neck_y_joint" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-    <motor name="left_hip_y_joint_motor" joint="left_hip_y_joint" gear="1" ctrllimited="true" ctrlrange="-363 363" />
-    <motor name="left_hip_x_joint_motor" joint="left_hip_x_joint" gear="1" ctrllimited="true" ctrlrange="-363 363" />
-    <motor name="left_hip_z_joint_motor" joint="left_hip_z_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="left_knee_joint_motor" joint="left_knee_joint" gear="1" ctrllimited="true" ctrlrange="-363 363" />
-    <motor name="left_ankle_y_joint_motor" joint="left_ankle_y_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="left_ankle_x_joint_motor" joint="left_ankle_x_joint" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-    <motor name="right_hip_y_joint_motor" joint="right_hip_y_joint" gear="1" ctrllimited="true" ctrlrange="-363 363" />
-    <motor name="right_hip_x_joint_motor" joint="right_hip_x_joint" gear="1" ctrllimited="true" ctrlrange="-363 363" />
-    <motor name="right_hip_z_joint_motor" joint="right_hip_z_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="right_knee_joint_motor" joint="right_knee_joint" gear="1" ctrllimited="true" ctrlrange="-363 363" />
-    <motor name="right_ankle_y_joint_motor" joint="right_ankle_y_joint" gear="1" ctrllimited="true" ctrlrange="-137 137" />
-    <motor name="right_ankle_x_joint_motor" joint="right_ankle_x_joint" gear="1" ctrllimited="true" ctrlrange="-50 50" />
-  </actuator>
 </mujoco>

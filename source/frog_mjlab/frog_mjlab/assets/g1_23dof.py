@@ -22,7 +22,7 @@ assert G1_23DOF_XML.exists()
 
 
 def get_spec() -> mujoco.MjSpec:
-  # Meshes are loaded automatically from the xml's meshdir (xmls/assets).
+  # Meshes are loaded automatically from the xml's meshdir (model/g1/assets).
   return mujoco.MjSpec.from_file(str(G1_23DOF_XML))
 
 

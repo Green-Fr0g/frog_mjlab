@@ -1,6 +1,6 @@
 """Unitree G1_23Dof flat mimic environment configurations."""
 
-from frog_mjlab.assets.g1.g1_23dof import (
+from frog_mjlab.assets.g1_23dof import (
   G1_23DOF_ACTION_SCALE,
   get_g1_23dof_robot_cfg,
 )

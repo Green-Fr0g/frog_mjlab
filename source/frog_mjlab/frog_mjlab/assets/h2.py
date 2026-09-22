@@ -18,7 +18,7 @@ assert H2_XML.exists()
 
 
 def get_spec() -> mujoco.MjSpec:
-  # Meshes are loaded automatically from the xml's meshdir (h2/assets).
+  # Meshes are loaded automatically from the xml's meshdir (model/h2/assets).
   return mujoco.MjSpec.from_file(str(H2_XML))
 
 
