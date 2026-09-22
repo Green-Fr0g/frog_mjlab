@@ -68,6 +68,7 @@ def unitree_h2_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = H2_ACTION_SCALE
 
   cfg.viewer.body_name = "torso_link"
 
