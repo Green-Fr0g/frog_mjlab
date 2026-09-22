@@ -15,7 +15,7 @@ motion_data:
 
   # Conversion targets: one NPZ is generated per entry.
   csv_paths:
-    - ../motion_tracking/g1_23dof/dance1_subject2.csv
+    - ../motion_tracking/g1_23/dance1_subject2_from_g1_g1_23.csv
 
   # Joint order used by the CSV columns (23 DoF).
   csv_joint_names:

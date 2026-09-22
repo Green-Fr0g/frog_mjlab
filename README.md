@@ -123,8 +123,9 @@ python scripts/frog_rl/train.py FrogMjlab-G1-Mimic-No-State-Estimation \
   --motion_file=source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1/motions/dance1_subject2.npz \
   --env.scene.num-envs=4096
 
+# G1 23 DoF：npz 名取自 CSV 文件名，由上面的 config_csv_to_npz.py 生成
 python scripts/frog_rl/train.py FrogMjlab-G1-23Dof-Mimic-No-State-Estimation \
-  --motion_file=source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1_23dof/motions/dance1_subject2.npz \
+  --motion_file=source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1_23dof/motions/dance1_subject2_from_g1_g1_23.npz \
   --env.scene.num-envs=4096
 ```
 
