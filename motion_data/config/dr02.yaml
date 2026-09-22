@@ -5,10 +5,9 @@ motion_data:
     - base_quat
   root_link_name: base_link
   root_quat_order: xyzw
-
-  csv_path: output_data/robot_motion/dance1_subject2_from_g1_DR02.csv
   csv_fps: 120
-
+  csv_paths:
+    - ../motion_tracking/DR02/dance1_subject2_from_g1_DR02.csv
   csv_joint_names:
     - waist_z_joint
     - waist_x_joint

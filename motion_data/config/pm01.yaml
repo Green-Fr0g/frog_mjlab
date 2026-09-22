@@ -5,10 +5,9 @@ motion_data:
     - base_quat
   root_link_name: LINK_BASE
   root_quat_order: xyzw
-
-  csv_path: output_data/robot_motion/dance1_subject2_from_g1_pm01.csv
   csv_fps: 120
-
+  csv_paths:
+    - ../motion_tracking/pm01/dance1_subject2_from_g1_pm01.csv
   csv_joint_names:
     - J00_HIP_PITCH_L
     - J01_HIP_ROLL_L

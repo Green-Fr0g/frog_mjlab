@@ -5,9 +5,10 @@ motion_data:
     - base_quat
   root_link_name: pelvis
   root_quat_order: xyzw
-
-  csv_path: motion_data/data/motion_data.csv
   csv_fps: 120
+  csv_paths:
+    - ../motion_tracking/g1/G1_Take_102.bvh_60hz.csv
+    - ../motion_tracking/g1/G1_gangnam_style_V01.bvh_60hz.csv
 
   csv_joint_names:
     - left_hip_pitch_joint

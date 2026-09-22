@@ -25,3 +25,6 @@ runs/
 
 # OS
 .DS_Store
+
+# Repository documentation
+/commit-conventions.md
