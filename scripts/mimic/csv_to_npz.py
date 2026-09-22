@@ -1,10 +1,8 @@
 """Replay a CSV motion in mjlab and export it as an NPZ.
 
-This version is config-driven, mirroring
-``frog_lab/scripts/mimic/csv_to_npz_frog.py``:
-
-- motion interpretation comes from ``motion_data/config/<robot>.yaml``
-- robot selection comes from a small registry in this script
+This script is config-free: every input comes from the command line. The
+config-driven front end ``config_csv_to_npz.py`` reads a motion yaml and
+invokes this script with the matching arguments.
 
 The exported NPZ stores the *same data contract* as frog_lab, so the two
 repositories' NPZ files are interchangeable::
@@ -14,8 +12,12 @@ repositories' NPZ files are interchangeable::
 
 Example:
     python scripts/mimic/csv_to_npz.py \
-        --config motion_data/config/g1.yaml \
-        --output_name source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1/motions/dance1_subject2.npz
+        --input_file motion_data/motion_tracking/g1/G1_Take_102.bvh_60hz.csv \
+        --input_fps 120 \
+        --robot_name g1 \
+        --root_link_name pelvis \
+        --csv_joint_names <joint names in csv column order> \
+        --output_name /tmp/g1_motion.npz
 """
 
 from __future__ import annotations
@@ -26,7 +28,6 @@ from typing import Any
 
 import numpy as np
 import torch
-import yaml
 from tqdm import tqdm
 
 from mjlab.entity import Entity
@@ -43,17 +44,9 @@ parser = argparse.ArgumentParser(
   description="Replay motion from csv file and output to npz file (mjlab backend)."
 )
 parser.add_argument(
-  "--config",
-  type=str,
-  default="motion_data/config/g1.yaml",
-  help="Motion config yaml.",
+  "--input_file", type=str, required=True, help="The path to the input motion csv file."
 )
-parser.add_argument(
-  "--csv_path",
-  type=str,
-  default=None,
-  help="Optional override for motion_data.csv_path. Used by the batch converter.",
-)
+parser.add_argument("--input_fps", type=float, default=120.0, help="The fps of the input motion.")
 parser.add_argument(
   "--frame_range",
   nargs=2,
@@ -70,13 +63,34 @@ parser.add_argument(
   required=True,
   help="Output path (or file name) of the motion npz file.",
 )
-parser.add_argument(
-  "--output_dir",
-  type=str,
-  default=None,
-  help="Optional directory prepended when --output_name is not absolute.",
-)
 parser.add_argument("--output_fps", type=float, default=50.0, help="The fps of the output motion.")
+
+# Robot metadata, normally supplied by the config-driven launcher.
+parser.add_argument(
+  "--robot_name",
+  type=str,
+  required=True,
+  help="Robot registry name used to select the robot scene.",
+)
+parser.add_argument(
+  "--root_link_name", type=str, required=True, help="Root link used as the motion anchor."
+)
+parser.add_argument(
+  "--csv_joint_names",
+  nargs="+",
+  default=None,
+  help=(
+    "Joint names matching the csv column order. Falls back to the robot joint "
+    "order when omitted."
+  ),
+)
+parser.add_argument(
+  "--root_quat_order",
+  type=str,
+  default="xyzw",
+  choices=("wxyz", "xyzw"),
+  help="Quaternion order of the root rotation inside the csv.",
+)
 parser.add_argument(
   "--device",
   type=str,
@@ -120,25 +134,8 @@ def _get_robot_scene_cfg(robot_name: str):
 # ---------------------------------------------------------------------------
 
 
-def _load_yaml(path: Path) -> dict[str, Any]:
-  with path.open("r", encoding="utf-8") as f:
-    data = yaml.safe_load(f)
-  if not isinstance(data, dict):
-    raise ValueError(f"Invalid yaml structure in: {path}")
-  return data
-
-
-def _resolve_path(base_dir: Path, maybe_path: str) -> Path:
-  path = Path(maybe_path)
-  if path.is_absolute():
-    return path
-  return (base_dir / path).resolve()
-
-
-def _resolve_output_path(output_name: str, output_dir: str | None) -> Path:
-  path = Path(output_name)
-  if not path.is_absolute() and output_dir is not None:
-    path = Path(output_dir) / path
+def _resolve_output_path(output_name: str) -> Path:
+  path = Path(output_name).expanduser()
   if not str(path).endswith(".npz"):
     path = Path(str(path) + ".npz")
   path.parent.mkdir(parents=True, exist_ok=True)
@@ -446,21 +443,13 @@ def run_simulator(
 
 
 def main():
-  config_path = Path(args_cli.config).resolve()
-  config = _load_yaml(config_path)
-  motion_cfg = config["motion_data"]
+  input_path = Path(args_cli.input_file).expanduser().resolve()
+  if not input_path.is_file():
+    raise FileNotFoundError(f"Input motion csv file does not exist: {input_path}")
 
-  robot_name = str(motion_cfg["robot_name"])
-  csv_path_value = args_cli.csv_path if args_cli.csv_path is not None else motion_cfg["csv_path"]
-  if not isinstance(csv_path_value, str):
-    raise TypeError(
-      "csv_path must be a string. For multiple paths, use scripts/mimic/batch_csv_to_npz.py."
-    )
-  csv_path = _resolve_path(config_path.parent, csv_path_value)
-  input_fps = float(motion_cfg.get("csv_fps", 30))
-  root_quat_order = str(motion_cfg.get("root_quat_order", "xyzw"))
-  root_link_name = str(motion_cfg["root_link_name"])
-  csv_joint_names = list(motion_cfg["csv_joint_names"])
+  robot_name = str(args_cli.robot_name)
+  root_link_name = str(args_cli.root_link_name)
+  root_quat_order = str(args_cli.root_quat_order)
 
   output_fps = float(args_cli.output_fps)
   device = args_cli.device or ("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -475,16 +464,26 @@ def main():
   scene.reset()
   print("[INFO]: Setup complete...")
 
+  csv_joint_names = (
+    list(args_cli.csv_joint_names) if args_cli.csv_joint_names is not None else None
+  )
+  if csv_joint_names is None:
+    csv_joint_names = list(scene["robot"].joint_names)
+    print(
+      "[INFO]: --csv_joint_names not given, assuming the csv columns follow "
+      "the robot joint order."
+    )
+
   motion = MotionLoader(
-    motion_file=str(csv_path),
-    input_fps=input_fps,
+    motion_file=str(input_path),
+    input_fps=float(args_cli.input_fps),
     output_fps=output_fps,
     device=device,
     frame_range=tuple(args_cli.frame_range) if args_cli.frame_range is not None else None,
     root_quat_order=root_quat_order,
   )
 
-  output_path = _resolve_output_path(args_cli.output_name, args_cli.output_dir)
+  output_path = _resolve_output_path(args_cli.output_name)
   run_simulator(
     sim,
     scene,

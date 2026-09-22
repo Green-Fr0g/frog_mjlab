@@ -1,6 +1,7 @@
 # Motion conversion config for the Unitree G1 (23 DoF) mimic task.
-# Consumed by scripts/mimic/csv_to_npz.py and scripts/mimic/batch_csv_to_npz.py.
-# Format is aligned with frog_lab's motion_data/config/g1.yaml
+# Consumed by scripts/mimic/config_csv_to_npz.py, which drives
+# scripts/mimic/csv_to_npz.py once per entry in motion_data.csv_paths.
+# Format is aligned with frog_lab's motion_data/config/g1_23.yaml
 # ("g1_23dof" here maps to frog_lab's "g1_23" registry key).
 #
 # NOTE: relative paths below are resolved against *this file's directory*
@@ -10,11 +11,9 @@ motion_data:
   root_link_name: pelvis
   root_quat_order: xyzw
 
-  # Default single-file input used by csv_to_npz.py when --csv_path is omitted.
-  csv_path: ../motion_tracking/g1_23dof/dance1_subject2.csv
   csv_fps: 30
 
-  # Optional multi-file list used by batch_csv_to_npz.py.
+  # Conversion targets: one NPZ is generated per entry.
   csv_paths:
     - ../motion_tracking/g1_23dof/dance1_subject2.csv
 

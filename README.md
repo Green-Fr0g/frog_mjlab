@@ -76,30 +76,37 @@ python scripts/train.py FrogMjlab-H2-Flat --env.scene.num-envs=4096
 
 **动作模仿（mimic）**
 
-转换脚本与 `frog_lab/scripts/mimic/` 结构对齐：**配置文件驱动 + 机器人注册表**，
+转换脚本与 `frog_lab/scripts/mimic/` 结构对齐：**单文件转换器不读配置、纯命令行**，
+再由 `config_csv_to_npz.py` 读取 yaml 作为配置驱动前端（逐条调用转换器）；
 npz 会写入 `robot_name` / `joint_names` / `body_names` / `root_link_name` 元数据，
 因此与 frog_lab 产出的 npz 可以互换使用。
 
-原始 CSV 在 `motion_data/motion_tracking/<robot>/`，转换配置在 `motion_data/config/*.yaml`：
+原始 CSV 在 `motion_data/motion_tracking/<robot>/`，转换配置在 `motion_data/config/*.yaml`
+（`motion_data.csv_paths` 列出待转换的一条或多条 CSV；输出名取 CSV 同名并自动去重）：
 
 ```bash
 # G1 29 DoF
-python scripts/mimic/csv_to_npz.py \
+python scripts/mimic/config_csv_to_npz.py \
   --config motion_data/config/g1.yaml \
-  --output_name source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1/motions/dance1_subject2.npz
+  --output_dir source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1/motions
 
 # G1 23 DoF
-python scripts/mimic/csv_to_npz.py \
+python scripts/mimic/config_csv_to_npz.py \
   --config motion_data/config/g1_23dof.yaml \
-  --output_name source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1_23dof/motions/dance1_subject2.npz
+  --output_dir source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1_23dof/motions
 ```
 
-批量转换（自动发现 yaml / csv 并对输出名去重；额外参数会透传给 `csv_to_npz.py`）：
+也可直接用单文件转换器（参数与 `frog_lab/scripts/mimic/csv_to_npz_frog.py` 一致，
+额外参数如 `--device cpu` 可直接透传）：
 
 ```bash
-python scripts/mimic/batch_csv_to_npz.py \
-  --config_dir motion_data/config \
-  --output_dir /tmp/motions
+python scripts/mimic/csv_to_npz.py \
+  --input_file motion_data/motion_tracking/g1/G1_Take_102.bvh_60hz.csv \
+  --input_fps 120 \
+  --robot_name g1 \
+  --root_link_name pelvis \
+  --csv_joint_names left_hip_pitch_joint left_hip_roll_joint ... \
+  --output_name source/frog_mjlab/frog_mjlab/tasks/mimic/config/g1/motions/G1_Take_102.bvh_60hz.npz
 ```
 
 回放转换后的动作（自动从 npz 的 `robot_name` 选择对应 mimic 任务）：
@@ -187,7 +194,7 @@ source/
         ├── storage/  modules/  networks/  env/  utils/
 scripts/
 ├── frog_rl/  (train.py, play.py)   # 训练/回放入口
-├── mimic/    (csv_to_npz.py)       # 动作 CSV -> NPZ 转换
+├── mimic/    (csv_to_npz.py, config_csv_to_npz.py, replay_npz.py)  # 动作 CSV -> NPZ 转换与回放
 └── list_envs.py                     # 列出已注册任务
 ```
 
